@@ -59,12 +59,12 @@ public class ScriptView extends JPanel {
                 .getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH)
                 .ifPresent(text -> {
                     DumbService.getInstance(project).runWhenSmart(() -> {
-                        LibraryUtils.refreshLibrary(project, text);
+                        LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", text);
                     });
                     Font font = classPathTextArea.getFont();
                     if (font != null) {
                         classPathTextArea.setFont(new Font(font.getName(), font.getStyle(), 14));
-                    }else {
+                    } else {
                         classPathTextArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
                     }
                     classPathTextArea.setText(text);
@@ -193,11 +193,11 @@ public class ScriptView extends JPanel {
                                 @Override
                                 public void windowClosing(WindowEvent e) {
                                     if (StringUtils.isNotBlank(classPathTextArea.getText())) {
-                                        DumbService.getInstance(project).runWhenSmart(() -> LibraryUtils.refreshLibrary(project, classPathTextArea.getText()));
+                                        DumbService.getInstance(project).runWhenSmart(() -> LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", classPathTextArea.getText()));
                                         ProjectStateManager.load(project).putCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH, classPathTextArea.getText());
                                         ProjectStateManager.store(project);
                                     } else {
-                                        DumbService.getInstance(project).runWhenSmart(() -> LibraryUtils.refreshLibrary(project, ""));
+                                        DumbService.getInstance(project).runWhenSmart(() -> LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", ""));
                                         ProjectStateManager.load(project).putCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH, "");
                                         ProjectStateManager.store(project);
                                     }
@@ -247,6 +247,15 @@ public class ScriptView extends JPanel {
                         projectState.putCache(CacheConstant.SCRIPT_VIEW_CACHE_USING_PROJECT_LIBRARY, state);
                         ProjectStateManager.store(project);
                     }
+                }
+            });
+            defaultActionGroup.add(new AnAction(() -> "刷新依赖",Icons.REFRESH) {
+                @Override
+                public void actionPerformed(@NotNull AnActionEvent event) {
+                    DumbService.getInstance(project).runWhenSmart(() -> {
+                        LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", "");
+                        LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", classPathTextArea.getText());
+                    });
                 }
             });
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", defaultActionGroup, true);

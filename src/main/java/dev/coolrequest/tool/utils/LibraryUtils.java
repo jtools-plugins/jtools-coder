@@ -20,10 +20,9 @@ import java.util.List;
 
 public class LibraryUtils {
 
-    public static void refreshLibrary(Project project, String classpathText) {
+    public static void refreshLibrary(Project project,String prefix, String classpathText) {
         ApplicationManager.getApplication().runWriteAction(() -> {
             try {
-                String prefix = "Coder:Groovy: ";
                 //本次添加的依赖
                 HashSet<File> uris = new HashSet<>();
                 HashSet<String> addNames = new HashSet<>();
