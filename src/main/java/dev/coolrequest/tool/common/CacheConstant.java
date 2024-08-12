@@ -36,4 +36,9 @@ public interface CacheConstant {
      * map结构的环境缓存
      */
     String CODER_VIEW_CUSTOM_CODER_ENVIRONMENT = "CoderView:CustomCoder:Environment";
+
+    /**
+     * 缓存自定义coder代码依赖的classpath
+     */
+    String CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH = "CoderView:CustomCoder:Code:Classpath";
 }
