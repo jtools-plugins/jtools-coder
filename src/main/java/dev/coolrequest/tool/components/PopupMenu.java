@@ -25,7 +25,8 @@ public class PopupMenu extends JPopupMenu {
                 super.processMouseEvent(e);
             }
         });
-        textArea.addMouseListener(popupMenu.createRightClickMouseAdapter());
+        textArea.setComponentPopupMenu(popupMenu);
+//        textArea.addMouseListener(popupMenu.createRightClickMouseAdapter());
     }
 
     public void rightClickShow(MouseEvent e) {

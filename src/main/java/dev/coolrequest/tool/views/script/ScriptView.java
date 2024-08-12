@@ -3,6 +3,7 @@ package dev.coolrequest.tool.views.script;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.roots.libraries.Library;
@@ -19,6 +20,7 @@ import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.ProjectState;
 import dev.coolrequest.tool.state.ProjectStateManager;
 import dev.coolrequest.tool.utils.ClassLoaderUtils;
+import dev.coolrequest.tool.utils.LibraryUtils;
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyShell;
@@ -55,7 +57,19 @@ public class ScriptView extends JPanel {
         logger = LogContext.getInstance(project).getLogger(ScriptView.class);
         ProjectStateManager.load(project)
                 .getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH)
-                .ifPresent(classPathTextArea::setText);
+                .ifPresent(text -> {
+                    DumbService.getInstance(project).runWhenSmart(() -> {
+                        LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", text);
+                    });
+                    Font font = classPathTextArea.getFont();
+                    if (font != null) {
+                        classPathTextArea.setFont(new Font(font.getName(), font.getStyle(), 14));
+                    } else {
+                        classPathTextArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+                    }
+                    classPathTextArea.setText(text);
+                });
+
         Left left = new Left(project);
         Right right = new Right(textArea -> {
             String text = left.getLanguageTextField().getText();
@@ -91,11 +105,11 @@ public class ScriptView extends JPanel {
                 for (String classPathItems : classPathArray) {
                     for (String classPath : classPathItems.split(",")) {
                         if (StringUtils.isNotBlank(StringUtils.trimToEmpty(classPath))) {
-                            try{
+                            try {
                                 URI uri = URI.create(StringUtils.trimToEmpty(classPath));
                                 URL url = uri.toURL();
                                 groovyClassLoader.addURL(url);
-                            }catch (Throwable e){
+                            } catch (Throwable e) {
                                 groovyClassLoader.addURL(new File(StringUtils.trimToEmpty(classPath)).toURI().toURL());
                             }
                         }
@@ -173,13 +187,20 @@ public class ScriptView extends JPanel {
                 public void mouseClicked(MouseEvent e) {
                     if (SwingUtilities.isLeftMouseButton(e)) {
                         if (state.compareAndSet(false, true)) {
-                            this.frame = new SimpleFrame(new JBScrollPane(classPathTextArea), I18n.getString("script.addclasspath.title", project), new Dimension(600, 400));
+                            this.frame = new SimpleFrame(new JBScrollPane(classPathTextArea), I18n.getString("script.addclasspath.title", project), new Dimension(800, 600));
                             frame.setVisible(true);
                             frame.addWindowListener(new WindowAdapter() {
                                 @Override
                                 public void windowClosing(WindowEvent e) {
                                     if (StringUtils.isNotBlank(classPathTextArea.getText())) {
+                                        DumbService.getInstance(project).runWhenSmart(() -> {
+                                            LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", classPathTextArea.getText());
+                                        });
                                         ProjectStateManager.load(project).putCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH, classPathTextArea.getText());
+                                        ProjectStateManager.store(project);
+                                    } else {
+                                        DumbService.getInstance(project).runWhenSmart(() -> LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", ""));
+                                        ProjectStateManager.load(project).putCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH, "");
                                         ProjectStateManager.store(project);
                                     }
                                     state.set(false);
@@ -228,6 +249,14 @@ public class ScriptView extends JPanel {
                         projectState.putCache(CacheConstant.SCRIPT_VIEW_CACHE_USING_PROJECT_LIBRARY, state);
                         ProjectStateManager.store(project);
                     }
+                }
+            });
+            defaultActionGroup.add(new AnAction(() -> "刷新依赖", Icons.REFRESH) {
+                @Override
+                public void actionPerformed(@NotNull AnActionEvent event) {
+                    DumbService.getInstance(project).runWhenSmart(() -> {
+                        LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", classPathTextArea.getText());
+                    });
                 }
             });
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", defaultActionGroup, true);
