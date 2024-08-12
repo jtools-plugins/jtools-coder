@@ -75,7 +75,7 @@ public class LibraryUtils {
                 modifiableModel.commit();
                 for (Module module : modules) {
                     for (Library library : addLibraries) {
-                        ModuleRootModificationUtil.addDependency(module, library, DependencyScope.COMPILE, false);
+                        ModuleRootModificationUtil.addDependency(module, library, DependencyScope.TEST, false);
                     }
                     ModuleRootManager moduleRootManager = ModuleRootManager.getInstance(module);
                     ModifiableRootModel modifiableRootModel = moduleRootManager.getModifiableModel();
