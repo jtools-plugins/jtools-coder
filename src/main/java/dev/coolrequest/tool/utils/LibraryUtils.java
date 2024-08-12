@@ -11,6 +11,7 @@ import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
@@ -20,7 +21,17 @@ import java.util.List;
 
 public class LibraryUtils {
 
-    public static void refreshLibrary(Project project,String prefix, String classpathText) {
+    public static void refreshLibrary(Project project, String prefix, String classpathText) {
+        installLibrary(project, prefix, "");
+        if (StringUtils.isBlank(classpathText)) {
+            return;
+        } else {
+            installLibrary(project, prefix, classpathText);
+        }
+    }
+
+
+    private static void installLibrary(Project project, String prefix, String classpathText) {
         ApplicationManager.getApplication().runWriteAction(() -> {
             try {
                 //本次添加的依赖
@@ -35,7 +46,11 @@ public class LibraryUtils {
                                     File file = new File(StringUtils.trimToEmpty(classPath));
                                     if (file.exists()) {
                                         uris.add(file);
-                                        addNames.add(prefix + file.getName());
+                                        if (file.isDirectory()) {
+                                            addNames.add(prefix + DigestUtils.md5Hex(file.getAbsolutePath()));
+                                        } else {
+                                            addNames.add(prefix + file.getName());
+                                        }
                                     }
                                 } catch (Throwable ignore) {
 
@@ -62,29 +77,55 @@ public class LibraryUtils {
                     if (existLibrary != null) {
                         continue;
                     }
-                    String pathUrl = VirtualFileManager.constructUrl("jar", file.getAbsolutePath() + "!/");
-                    VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(pathUrl);
-                    Library library = modifiableModel.createLibrary(prefix + file.getName());
-                    Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
-                    libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
-                    modifiableModels.add(libraryModifiableModel);
-                    addLibraries.add(library);
+
+                    if (file.isFile()) {
+                        String pathUrl = VirtualFileManager.constructUrl("jar", file.getAbsolutePath() + "!/");
+                        VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(pathUrl);
+                        Library library = modifiableModel.createLibrary(prefix + file.getName());
+                        Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
+                        libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
+                        modifiableModels.add(libraryModifiableModel);
+                        addLibraries.add(library);
+                    } else {
+                        String pathUrl = VirtualFileManager.constructUrl("file", file.getAbsolutePath());
+                        VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(pathUrl);
+                        Library library = modifiableModel.createLibrary(prefix + DigestUtils.md5Hex(file.getAbsolutePath()));
+                        Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
+                        libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
+                        modifiableModels.add(libraryModifiableModel);
+                        addLibraries.add(library);
+                    }
+
                 }
                 modifiableModels.forEach(Library.ModifiableModel::commit);
                 modifiableModel.commit();
                 for (Module module : modules) {
-                    for (Library library : addLibraries) {
-                        ModuleRootModificationUtil.addDependency(module, library, DependencyScope.TEST, false);
-                    }
+
                     ModuleRootManager moduleRootManager = ModuleRootManager.getInstance(module);
                     ModifiableRootModel modifiableRootModel = moduleRootManager.getModifiableModel();
-                    for (OrderEntry orderEntry : moduleRootManager.getModifiableModel().getOrderEntries()) {
+                    for (OrderEntry orderEntry : modifiableRootModel.getOrderEntries()) {
                         if (orderEntry instanceof LibraryOrderEntry) {
                             LibraryOrderEntry libraryOrderEntry = (LibraryOrderEntry) orderEntry;
                             String libraryName = libraryOrderEntry.getLibraryName();
                             if (removeLibraries.contains(libraryName)) {
                                 modifiableRootModel.removeOrderEntry(orderEntry);
                             }
+                        }
+                    }
+                    for (Library library : addLibraries) {
+                        OrderEntry[] orderEntries = modifiableRootModel.getOrderEntries();
+                        boolean existLibrary = false;
+                        for (OrderEntry orderEntry : orderEntries) {
+                            if (orderEntry instanceof LibraryOrderEntry) {
+                                LibraryOrderEntry libraryOrderEntry = (LibraryOrderEntry) orderEntry;
+                                String libraryName = libraryOrderEntry.getLibraryName();
+                                if (StringUtils.equals(libraryName, library.getName())) {
+                                    existLibrary = true;
+                                }
+                            }
+                        }
+                        if (!existLibrary) {
+                            ModuleRootModificationUtil.addDependency(module, library, DependencyScope.TEST, false);
                         }
                     }
                     modifiableRootModel.commit();
