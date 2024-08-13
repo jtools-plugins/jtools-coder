@@ -42,6 +42,10 @@ public class MultiLanguageTextField extends LanguageTextField {
         }
     }
 
+    public LanguageFileType getLanguageFileType() {
+        return languageFileType;
+    }
+
     @Override
     protected @NotNull EditorEx createEditor() {
         EditorEx editor = super.createEditor();
