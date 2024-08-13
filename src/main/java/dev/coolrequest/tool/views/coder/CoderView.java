@@ -381,9 +381,6 @@ public class CoderView extends JPanel implements DocumentListener {
                                 ReformatCodeProcessor reformatCodeProcessor = new ReformatCodeProcessor(psiFile, false);
                                 RearrangeCodeProcessor rearrangeCodeProcessor = new RearrangeCodeProcessor(reformatCodeProcessor);
                                 CodeCleanupCodeProcessor codeCleanupCodeProcessor = new CodeCleanupCodeProcessor(rearrangeCodeProcessor);
-                                codeCleanupCodeProcessor.setPostRunnable(() -> {
-                                    leftFieldText.setText(psiFile.getText());
-                                });
                                 codeCleanupCodeProcessor.setProcessAllFilesAsSingleUndoStep(false);
                                 codeCleanupCodeProcessor.run();
                             }
@@ -407,9 +404,6 @@ public class CoderView extends JPanel implements DocumentListener {
                                 OptimizeImportsProcessor optimizeImportsProcessor = new OptimizeImportsProcessor(project, psiFile);
                                 RearrangeCodeProcessor rearrangeCodeProcessor = new RearrangeCodeProcessor(optimizeImportsProcessor);
                                 CodeCleanupCodeProcessor codeCleanupCodeProcessor = new CodeCleanupCodeProcessor(rearrangeCodeProcessor);
-                                codeCleanupCodeProcessor.setPostRunnable(() -> {
-                                    leftFieldText.setText(psiFile.getText());
-                                });
                                 codeCleanupCodeProcessor.setProcessAllFilesAsSingleUndoStep(false);
                                 codeCleanupCodeProcessor.run();
                             }
