@@ -1,8 +1,13 @@
 package dev.coolrequest.tool.views.coder;
 
+import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
+import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
+import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
+import com.intellij.codeInsight.actions.ReformatCodeProcessor;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
@@ -14,6 +19,8 @@ import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
@@ -38,10 +45,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
@@ -365,6 +369,52 @@ public class CoderView extends JPanel implements DocumentListener {
             defaultActionGroup.add(new RefreshClassPathAction(project));
             defaultActionGroup.add(new ChangeScopeAction(leftFieldText, project));
             SimpleToolWindowPanel panel = new SimpleToolWindowPanel(true, false);
+            panel.registerKeyboardAction(new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    ApplicationManager.getApplication().runWriteAction(() -> {
+                        try {
+                            PsiDocumentManager psiDocumentManager = PsiDocumentManager.getInstance(project);
+                            psiDocumentManager.commitAllDocuments();
+                            PsiFile psiFile = psiDocumentManager.getPsiFile(leftFieldText.getDocument());
+                            if (psiFile != null) {
+                                ReformatCodeProcessor reformatCodeProcessor = new ReformatCodeProcessor(psiFile, false);
+                                RearrangeCodeProcessor rearrangeCodeProcessor = new RearrangeCodeProcessor(reformatCodeProcessor);
+                                CodeCleanupCodeProcessor codeCleanupCodeProcessor = new CodeCleanupCodeProcessor(rearrangeCodeProcessor);
+                                codeCleanupCodeProcessor.setProcessAllFilesAsSingleUndoStep(false);
+                                codeCleanupCodeProcessor.run();
+                            }
+                        } catch (Throwable err) {
+                            logger.error("格式化失败: " + err.getMessage());
+                        }
+                    });
+
+                }
+            }, KeyStroke.getKeyStroke(KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK), JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+            panel.registerKeyboardAction(new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    ApplicationManager.getApplication().runWriteAction(() -> {
+                        try {
+                            PsiDocumentManager psiDocumentManager = PsiDocumentManager.getInstance(project);
+                            psiDocumentManager.commitAllDocuments();
+                            PsiFile psiFile = psiDocumentManager.getPsiFile(leftFieldText.getDocument());
+                            if (psiFile != null) {
+                                OptimizeImportsProcessor optimizeImportsProcessor = new OptimizeImportsProcessor(project, psiFile);
+                                RearrangeCodeProcessor rearrangeCodeProcessor = new RearrangeCodeProcessor(optimizeImportsProcessor);
+                                CodeCleanupCodeProcessor codeCleanupCodeProcessor = new CodeCleanupCodeProcessor(rearrangeCodeProcessor);
+                                codeCleanupCodeProcessor.setProcessAllFilesAsSingleUndoStep(false);
+                                codeCleanupCodeProcessor.run();
+                            }
+                        } catch (Throwable err) {
+                            logger.error("优化依赖失败: " + err.getMessage());
+                        }
+                    });
+
+                }
+            }, KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK | InputEvent.ALT_DOWN_MASK), JComponent.WHEN_IN_FOCUSED_WINDOW);
+
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("custom.coder", defaultActionGroup, false);
             panel.setToolbar(actionToolbar.getComponent());
             JBSplitter splitter = new JBSplitter();
