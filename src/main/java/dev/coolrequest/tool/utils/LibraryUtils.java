@@ -73,13 +73,14 @@ public class LibraryUtils {
             List<Library.ModifiableModel> modifiableModels = new ArrayList<>();
             ModuleManager moduleManager = ModuleManager.getInstance(project);
             Module[] modules = moduleManager.getModules();
-            List<Library> addLibraries = new ArrayList<>();
+            List<Library> dependencyLibraries = new ArrayList<>();
             for (File file : uris) {
                 //计算唯一名称
                 String uniqueFilename = file.isDirectory() ? prefix + DigestUtils.md5Hex(file.getAbsolutePath()) : prefix + file.getName();
                 //判断依赖是否存在
                 Library existLibrary = modifiableModel.getLibraryByName(uniqueFilename);
                 if (existLibrary != null) {
+                    dependencyLibraries.add(existLibrary);
                     continue;
                 }
                 //处理url
@@ -91,7 +92,7 @@ public class LibraryUtils {
                 Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
                 libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
                 modifiableModels.add(libraryModifiableModel);
-                addLibraries.add(library);
+                dependencyLibraries.add(library);
             }
             modifiableModels.forEach(Library.ModifiableModel::commit);
             modifiableModel.commit();
@@ -109,7 +110,7 @@ public class LibraryUtils {
                         }
                     }
                 }
-                for (Library library : addLibraries) {
+                for (Library library : dependencyLibraries) {
                     OrderEntry[] orderEntries = modifiableRootModel.getOrderEntries();
                     boolean existLibrary = false;
                     for (OrderEntry orderEntry : orderEntries) {
