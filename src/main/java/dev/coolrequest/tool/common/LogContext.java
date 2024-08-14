@@ -4,12 +4,15 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowAnchor;
 import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.content.ContentFactory;
 import dev.coolrequest.tool.components.PopupMenu;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,8 +22,6 @@ public class LogContext {
     private final JBTextArea textArea;
     private final JBScrollPane scrollLogPanel;
     private final Project project;
-    private final JScrollBar verticalScrollBar;
-    private final JScrollBar horizontalScrollBar;
     private Boolean isInstall = false;
 
     public LogContext(Project project) {
@@ -30,17 +31,24 @@ public class LogContext {
         this.scrollLogPanel = new JBScrollPane(textArea);
         this.scrollLogPanel.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         this.scrollLogPanel.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        this.verticalScrollBar = this.scrollLogPanel.getVerticalScrollBar();
-        this.horizontalScrollBar = this.scrollLogPanel.getHorizontalScrollBar();
+        this.textArea.getDocument().addDocumentListener(new DocumentAdapter() {
+            @Override
+            protected void textChanged(@NotNull DocumentEvent documentEvent) {
+                JScrollBar horizontalScrollBar = scrollLogPanel.getHorizontalScrollBar();
+                horizontalScrollBar.setValue(horizontalScrollBar.getMinimum());
+                JScrollBar verticalScrollBar = scrollLogPanel.getVerticalScrollBar();
+                verticalScrollBar.setValue(verticalScrollBar.getMaximum());
+            }
+        });
         this.project = project;
     }
 
     public Logger getLogger(Class<?> clazz) {
-        return new TextAreaLogger(clazz, textArea, this.verticalScrollBar, this.horizontalScrollBar);
+        return new TextAreaLogger(clazz, textArea);
     }
 
     public Logger getLogger(String loggerName) {
-        return new TextAreaLogger(loggerName, textArea, this.verticalScrollBar, this.horizontalScrollBar);
+        return new TextAreaLogger(loggerName, textArea);
     }
 
 
