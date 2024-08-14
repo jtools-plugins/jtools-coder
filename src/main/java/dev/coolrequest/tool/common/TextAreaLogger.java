@@ -3,6 +3,7 @@ package dev.coolrequest.tool.common;
 import com.intellij.ui.components.JBTextArea;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.swing.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -11,14 +12,18 @@ public class TextAreaLogger implements Logger {
     private final JBTextArea textArea;
 
     private final String loggerName;
+    private final JScrollBar verticalScrollBar;
+    private final JScrollBar horizontalScrollBar;
 
-    public TextAreaLogger(Class<?> clazz, JBTextArea textArea) {
-        this(clazz.getName(), textArea);
+    public TextAreaLogger(Class<?> clazz, JBTextArea textArea, JScrollBar verticalScrollBar, JScrollBar horizontalScrollBar) {
+        this(clazz.getName(), textArea, verticalScrollBar, horizontalScrollBar);
     }
 
-    public TextAreaLogger(String loggerName, JBTextArea textArea) {
+    public TextAreaLogger(String loggerName, JBTextArea textArea, JScrollBar verticalScrollBar, JScrollBar horizontalScrollBar) {
         this.textArea = textArea;
         this.loggerName = loggerName;
+        this.verticalScrollBar = verticalScrollBar;
+        this.horizontalScrollBar = horizontalScrollBar;
     }
 
     @Override
@@ -41,6 +46,8 @@ public class TextAreaLogger implements Logger {
         } else {
             textArea.append(log);
         }
+        horizontalScrollBar.setValue(horizontalScrollBar.getMinimum());
+        verticalScrollBar.setValue(verticalScrollBar.getMaximum());
     }
 
     @Override
