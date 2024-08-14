@@ -70,6 +70,7 @@ public class CoderView extends JPanel implements DocumentListener {
     private final MultiLanguageTextField rightTextField;
     private final Project project;
     private final Logger sysLogger;
+    private final MultiLanguageTextField codeTextField;
 
     public CoderView(Project project) {
         super(new BorderLayout());
@@ -94,6 +95,9 @@ public class CoderView extends JPanel implements DocumentListener {
         this.leftTextField.getDocument().addDocumentListener(this);
         this.rightTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
         this.rightTextField.setEnabled(false);
+        //代码面板
+        LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
+        this.codeTextField = new MultiLanguageTextField(groovyFileType, project);
         leftSource = new LeftSource();
         rightTarget = new RightTarget(project, createGroovyShell(project, () -> {
             ProjectState projectState = ProjectStateManager.load(project);
@@ -347,8 +351,6 @@ public class CoderView extends JPanel implements DocumentListener {
         }
 
         private JComponent createCustomCoderPanel(Supplier<GroovyShell> groovyShell, List<Runnable> disposeRegistry) {
-            LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            MultiLanguageTextField codeTextField = new MultiLanguageTextField(groovyFileType, project);
             ProjectState projectState = ProjectStateManager.load(project);
             if (projectState.getScope() == Scope.PROJECT) {
                 String script = projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
