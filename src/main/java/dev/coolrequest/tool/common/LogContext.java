@@ -19,6 +19,8 @@ public class LogContext {
     private final JBTextArea textArea;
     private final JBScrollPane scrollLogPanel;
     private final Project project;
+    private final JScrollBar verticalScrollBar;
+    private final JScrollBar horizontalScrollBar;
 
     public LogContext(Project project) {
         this.textArea = new JBTextArea();
@@ -27,15 +29,17 @@ public class LogContext {
         this.scrollLogPanel = new JBScrollPane(textArea);
         this.scrollLogPanel.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         this.scrollLogPanel.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        this.verticalScrollBar = this.scrollLogPanel.getVerticalScrollBar();
+        this.horizontalScrollBar = this.scrollLogPanel.getHorizontalScrollBar();
         this.project = project;
     }
 
     public Logger getLogger(Class<?> clazz) {
-        return new TextAreaLogger(clazz, textArea);
+        return new TextAreaLogger(clazz, textArea,this.verticalScrollBar,this.horizontalScrollBar);
     }
 
     public Logger getLogger(String loggerName) {
-        return new TextAreaLogger(loggerName, textArea);
+        return new TextAreaLogger(loggerName, textArea,this.verticalScrollBar,this.horizontalScrollBar);
     }
 
 
