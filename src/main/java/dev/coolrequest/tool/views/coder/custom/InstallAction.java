@@ -4,7 +4,6 @@ package dev.coolrequest.tool.views.coder.custom;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.components.JBTextArea;
 import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.state.GlobalState;
@@ -32,40 +31,45 @@ import java.util.stream.Collectors;
 public class InstallAction extends AnAction {
 
     private final MultiLanguageTextField codeTextField;
-    private final JBTextArea outputTextField;
     private final Supplier<GroovyShell> groovyShell;
     private final JComboBox<String> coderSourceBox;
     private final List<Coder> baseCoders;
     private final List<Coder> dynamicCoders;
     private final Project project;
-    private final Logger logger;
+    private final Logger contextLogger;
     private final ProjectState projectState;
+    private final Logger sysLogger;
 
-    public InstallAction(MultiLanguageTextField codeTextField, JBTextArea outputTextField, Supplier<GroovyShell> groovyShell, JComboBox<String> coderSourceBox, List<Coder> baseCoders, List<Coder> dynamicCoders, Project project) {
+    public InstallAction(MultiLanguageTextField codeTextField,
+                         Supplier<GroovyShell> groovyShell,
+                         JComboBox<String> coderSourceBox,
+                         List<Coder> baseCoders,
+                         List<Coder> dynamicCoders,
+                         Project project, Logger contextLogger) {
         super(() -> I18n.getString("coder.custom.install", project), Icons.INSTALL);
         this.codeTextField = codeTextField;
-        this.outputTextField = outputTextField;
         this.groovyShell = groovyShell;
         this.coderSourceBox = coderSourceBox;
         this.baseCoders = baseCoders;
         this.dynamicCoders = dynamicCoders;
         this.project = project;
         this.projectState = ProjectStateManager.load(project);
-        this.logger = LogContext.getInstance(project).getLogger(InstallAction.class);
+        this.contextLogger = contextLogger;
+        this.sysLogger = LogContext.getSysLog(project);
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
         String code = this.codeTextField.getText();
         if (StringUtils.isNotBlank(code)) {
-            TextAreaLogger contextLogger = new TextAreaLogger("custom.coder", outputTextField);
+            LogContext.show(project);
             this.dynamicCoders.clear();
             this.dynamicCoders.addAll(this.baseCoders);
             CoderRegistry coderRegistry = new CoderRegistry(this.dynamicCoders);
             Binding binding = new Binding();
             binding.setVariable("coder", coderRegistry);
             binding.setVariable("log", contextLogger);
-            binding.setVariable("sysLog", this.logger);
+            binding.setVariable("sysLog", sysLogger);
             binding.setVariable("projectEnv", ProjectStateManager.load(project).getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
             binding.setVariable("globalEnv", GlobalState.getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
             Script script = this.groovyShell.get().parse(code);
