@@ -9,13 +9,11 @@ import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.roots.libraries.Library;
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.ui.JBSplitter;
 import com.intellij.ui.LanguageTextField;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
-import dev.coolrequest.tool.components.PopupMenu;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.ProjectState;
 import dev.coolrequest.tool.state.ProjectStateManager;
@@ -41,11 +39,11 @@ import java.net.URL;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 public class ScriptView extends JPanel {
 
-    private final Logger logger;
+    private final Logger sysLog;
+    private final Logger contextLogger;
     private Project project;
 
     private final JBTextArea classPathTextArea = new JBTextArea();
@@ -54,7 +52,8 @@ public class ScriptView extends JPanel {
     public ScriptView(Project project) {
         super(new BorderLayout());
         this.project = project;
-        logger = LogContext.getInstance(project).getLogger(ScriptView.class);
+        sysLog = LogContext.getSysLog(project);
+        this.contextLogger = LogContext.getLogger("Groovy", project);
         ProjectStateManager.load(project)
                 .getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH)
                 .ifPresent(text -> {
@@ -70,24 +69,13 @@ public class ScriptView extends JPanel {
                     classPathTextArea.setText(text);
                 });
 
-        Left left = new Left(project);
-        Right right = new Right(textArea -> {
-            String text = left.getLanguageTextField().getText();
-            if (StringUtils.isEmpty(text)) {
-                textArea.setText("请输入Groovy脚本");
-            } else {
-                runScript(text, textArea);
-            }
-        }, project);
-        JBSplitter jbSplitter = new JBSplitter();
-        jbSplitter.setSecondComponent(right);
-        jbSplitter.setFirstComponent(left);
-        this.add(jbSplitter, BorderLayout.CENTER);
+        CodePanel codePanel = new CodePanel(project);
+        this.add(codePanel, BorderLayout.CENTER);
     }
 
-    private void runScript(String script, JBTextArea output) {
+    private void runScript(String script) {
         CompilerConfiguration compilerConfiguration = new CompilerConfiguration();
-        Logger scriptLogger = new TextAreaLogger("groovy.script", output);
+
         try (GroovyClassLoader groovyClassLoader = new GroovyClassLoader(ScriptView.class.getClassLoader(), compilerConfiguration)) {
             GroovyShell groovyShell = new GroovyShell(groovyClassLoader, compilerConfiguration);
             ProjectState projectState = ProjectStateManager.load(project);
@@ -118,8 +106,8 @@ public class ScriptView extends JPanel {
             }
             Script groovyScript = groovyShell.parse(script);
             Binding binding = new Binding();
-            binding.setVariable("log", scriptLogger);
-            binding.setVariable("sysLog", logger);
+            binding.setVariable("sysLog", sysLog);
+            binding.setVariable("log", contextLogger);
             groovyScript.setBinding(binding);
             FutureTask<Object> futureTask = new FutureTask<>(groovyScript::run);
             try {
@@ -128,54 +116,23 @@ public class ScriptView extends JPanel {
                 futureTask.get(10, TimeUnit.SECONDS);
             } catch (Throwable e) {
                 futureTask.cancel(true);
-                scriptLogger.error("脚本执行失败,错误信息: " + e);
+                contextLogger.error("脚本执行失败,错误信息: " + e);
             }
             ProjectStateManager.load(project).putCache(CacheConstant.SCRIPT_VIEW_CACHE_CODE, script);
             ProjectStateManager.store(project);
         } catch (Throwable e) {
-            scriptLogger.error("groovy脚本执行错误: " + e.getMessage() + "\n");
+            sysLog.error("groovy脚本执行错误: " + e.getMessage() + "\n");
         }
     }
 
-    private class Right extends JPanel {
-        private final JBTextArea targetTextArea = new JBTextArea();
 
-        public Right(Consumer<JBTextArea> consumer, Project project) {
-            super(new BorderLayout());
-            targetTextArea.setEditable(false);
-            targetTextArea.setText(String.format("注意事项: \n%s\n", "只可使用项目依赖的jar包中的对象以及jdk提供的对象,其他不可使用,如需使用,请手动设置classpath,多个通过,或者空行隔开"));
-            JButton button = new JButton(I18n.getString("script.run", project));
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (e.getButton() == MouseEvent.BUTTON1) {
-                        consumer.accept(targetTextArea);
-                    }
-                }
-            });
-            JButton clearLogButton = new JButton(I18n.getString("script.clearLog", project));
-            clearLogButton.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (SwingUtilities.isLeftMouseButton(e)) {
-                        targetTextArea.setText(String.format("注意事项: \n%s\n", "只可使用项目依赖的jar包中的对象以及jdk提供的对象,其他不可使用,如需使用,请手动设置classpath,多个通过,或者空行隔开"));
-                    }
-                }
-            });
-            PopupMenu.attachClearMenu(I18n.getString("script.clearLog", project), Icons.CLEAR, targetTextArea);
-            add(createFlowLayoutPanel(button, clearLogButton), BorderLayout.NORTH);
-            add(new JScrollPane(targetTextArea), BorderLayout.CENTER);
-        }
-
-    }
-
-    private class Left extends JPanel {
+    private class CodePanel extends JPanel {
         private final LanguageTextField languageTextField;
 
-        public Left(Project project) {
+        public CodePanel(Project project) {
             super(new BorderLayout());
             LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            languageTextField = new MultiLanguageTextField(groovyFileType, project);
+            this.languageTextField = new MultiLanguageTextField(groovyFileType, project);
             ProjectStateManager.load(project).getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CODE).ifPresent(languageTextField::setText);
             JButton button = new JButton(I18n.getString("script.addclasspath.title", project));
             button.addMouseListener(new MouseAdapter() {
@@ -259,13 +216,22 @@ public class ScriptView extends JPanel {
                     });
                 }
             });
+            defaultActionGroup.add(new AnAction(() -> "运行", Icons.RUN) {
+                @Override
+                public void actionPerformed(@NotNull AnActionEvent event) {
+                    //显示日志面板
+                    LogContext.show(project);
+                    String code = languageTextField.getText();
+                    if (StringUtils.isNotBlank(code)) {
+                        runScript(languageTextField.getText());
+                    } else {
+                        contextLogger.warn("执行代码为空");
+                    }
+                }
+            });
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", defaultActionGroup, true);
             add(createFlowLayoutPanel(button, templateCodeButton, actionToolbar.getComponent()), BorderLayout.NORTH);
             add(languageTextField, BorderLayout.CENTER);
-        }
-
-        public LanguageTextField getLanguageTextField() {
-            return languageTextField;
         }
     }
 

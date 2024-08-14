@@ -7,8 +7,8 @@ import com.intellij.ui.tabs.JBTabs;
 import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.impl.JBTabsImpl;
 import dev.coolrequest.tool.common.I18n;
+import dev.coolrequest.tool.common.LogContext;
 import dev.coolrequest.tool.views.coder.CoderView;
-import dev.coolrequest.tool.views.log.LogView;
 import dev.coolrequest.tool.views.script.ScriptView;
 
 import javax.swing.*;
@@ -21,6 +21,8 @@ public class MainPanel extends JPanel implements CoolToolPanel {
     public JPanel createPanel() {
         setLayout(new BorderLayout());
         try {
+            //初始化
+            LogContext.getInstance(project);
             JBTabs jbTabs = new JBTabsImpl(project);
             TabInfo encoderTabInfo = new TabInfo(new CoderView(project));
             encoderTabInfo.setText(I18n.getString("coder.title", project));
@@ -29,10 +31,6 @@ public class MainPanel extends JPanel implements CoolToolPanel {
             TabInfo decoderTabInfo = new TabInfo(new ScriptView(project));
             decoderTabInfo.setText(I18n.getString("script.title", project));
             jbTabs.addTab(decoderTabInfo);
-
-            TabInfo logTab = new TabInfo(new LogView(project));
-            logTab.setText(I18n.getString("log.title", project));
-            jbTabs.addTab(logTab);
             add(jbTabs.getComponent(), BorderLayout.CENTER);
         } catch (Throwable e) {
             JDialog jd = new JDialog();

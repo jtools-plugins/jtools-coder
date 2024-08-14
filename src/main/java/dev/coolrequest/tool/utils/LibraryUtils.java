@@ -23,9 +23,8 @@ public class LibraryUtils {
 
     public static void refreshLibrary(Project project, String prefix, String classpathText) {
         ApplicationManager.getApplication().runWriteAction(() -> {
-            installLibrary(project, prefix, "");
             if (StringUtils.isBlank(classpathText)) {
-                return;
+                installLibrary(project, prefix, "");
             } else {
                 installLibrary(project, prefix, classpathText);
             }
@@ -37,6 +36,7 @@ public class LibraryUtils {
         try {
             //本次添加的依赖
             HashSet<File> uris = new HashSet<>();
+            //本次添加的依赖名称
             HashSet<String> addNames = new HashSet<>();
             if (StringUtils.isNotBlank(classpathText)) {
                 String[] classPathArray = classpathText.split("\n");
@@ -61,6 +61,7 @@ public class LibraryUtils {
                 }
             }
             LibraryTable libraryTable = LibraryTablesRegistrar.getInstance().getLibraryTable(project);
+            //处理删除的依赖
             HashSet<String> removeLibraries = new HashSet<>();
             for (Library library : libraryTable.getLibraries()) {
                 if (StringUtils.startsWith(library.getName(), prefix) && !addNames.contains(library.getName())) {
@@ -72,34 +73,30 @@ public class LibraryUtils {
             List<Library.ModifiableModel> modifiableModels = new ArrayList<>();
             ModuleManager moduleManager = ModuleManager.getInstance(project);
             Module[] modules = moduleManager.getModules();
-            List<Library> addLibraries = new ArrayList<>();
+            List<Library> dependencyLibraries = new ArrayList<>();
             for (File file : uris) {
-                Library existLibrary = modifiableModel.getLibraryByName(prefix + file.getName());
+                //计算唯一名称
+                String uniqueFilename = file.isDirectory() ? prefix + DigestUtils.md5Hex(file.getAbsolutePath()) : prefix + file.getName();
+                //判断依赖是否存在
+                Library existLibrary = modifiableModel.getLibraryByName(uniqueFilename);
                 if (existLibrary != null) {
+                    dependencyLibraries.add(existLibrary);
                     continue;
                 }
-
-                if (file.isFile()) {
-                    String pathUrl = VirtualFileManager.constructUrl("jar", file.getAbsolutePath() + "!/");
-                    VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(pathUrl);
-                    Library library = modifiableModel.createLibrary(prefix + file.getName());
-                    Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
-                    libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
-                    modifiableModels.add(libraryModifiableModel);
-                    addLibraries.add(library);
-                } else {
-                    String pathUrl = VirtualFileManager.constructUrl("file", file.getAbsolutePath());
-                    VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(pathUrl);
-                    Library library = modifiableModel.createLibrary(prefix + DigestUtils.md5Hex(file.getAbsolutePath()));
-                    Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
-                    libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
-                    modifiableModels.add(libraryModifiableModel);
-                    addLibraries.add(library);
-                }
-
+                //处理url
+                String url = file.isFile() ? VirtualFileManager.constructUrl("jar", file.getAbsolutePath() + "!/") : VirtualFileManager.constructUrl("file", file.getAbsolutePath());
+                //获取virtualFile
+                VirtualFile virtualFile = VirtualFileManager.getInstance().findFileByUrl(url);
+                //创建library
+                Library library = modifiableModel.createLibrary(uniqueFilename);
+                Library.ModifiableModel libraryModifiableModel = library.getModifiableModel();
+                libraryModifiableModel.addRoot(virtualFile, OrderRootType.CLASSES);
+                modifiableModels.add(libraryModifiableModel);
+                dependencyLibraries.add(library);
             }
             modifiableModels.forEach(Library.ModifiableModel::commit);
             modifiableModel.commit();
+            //将依赖添加到modules
             for (Module module : modules) {
 
                 ModuleRootManager moduleRootManager = ModuleRootManager.getInstance(module);
@@ -113,7 +110,7 @@ public class LibraryUtils {
                         }
                     }
                 }
-                for (Library library : addLibraries) {
+                for (Library library : dependencyLibraries) {
                     OrderEntry[] orderEntries = modifiableRootModel.getOrderEntries();
                     boolean existLibrary = false;
                     for (OrderEntry orderEntry : orderEntries) {
