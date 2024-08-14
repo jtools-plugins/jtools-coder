@@ -21,6 +21,7 @@ public class LogContext {
     private final Project project;
     private final JScrollBar verticalScrollBar;
     private final JScrollBar horizontalScrollBar;
+    private Boolean isInstall = false;
 
     public LogContext(Project project) {
         this.textArea = new JBTextArea();
@@ -35,11 +36,11 @@ public class LogContext {
     }
 
     public Logger getLogger(Class<?> clazz) {
-        return new TextAreaLogger(clazz, textArea,this.verticalScrollBar,this.horizontalScrollBar);
+        return new TextAreaLogger(clazz, textArea, this.verticalScrollBar, this.horizontalScrollBar);
     }
 
     public Logger getLogger(String loggerName) {
-        return new TextAreaLogger(loggerName, textArea,this.verticalScrollBar,this.horizontalScrollBar);
+        return new TextAreaLogger(loggerName, textArea, this.verticalScrollBar, this.horizontalScrollBar);
     }
 
 
@@ -53,16 +54,28 @@ public class LogContext {
 
     private void showWindow(Project project) {
         ToolWindowManager toolWindowManager = ToolWindowManager.getInstance(project);
-        ToolWindow toolWindow = toolWindowManager.getToolWindow(GlobalConstant.CODER_LOG_CONSOLE);
-        if (toolWindow != null) {
-            toolWindow.show();
+        ToolWindow toolWindow;
+        if (isInstall) {
+            toolWindow = toolWindowManager.getToolWindow(GlobalConstant.CODER_LOG_CONSOLE);
+            if (toolWindow != null) {
+                toolWindow.show();
+            } else {
+                toolWindow = toolWindowManager.registerToolWindow(GlobalConstant.CODER_LOG_CONSOLE, false, ToolWindowAnchor.BOTTOM);
+                toolWindow.setTitle(GlobalConstant.CODER_LOG_CONSOLE);
+                ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
+                toolWindow.getContentManager().addContent(contentFactory.createContent(scrollLogPanel, "日志", true));
+                toolWindow.show();
+            }
         } else {
+            toolWindowManager.unregisterToolWindow(GlobalConstant.CODER_LOG_CONSOLE);
             toolWindow = toolWindowManager.registerToolWindow(GlobalConstant.CODER_LOG_CONSOLE, false, ToolWindowAnchor.BOTTOM);
             toolWindow.setTitle(GlobalConstant.CODER_LOG_CONSOLE);
             ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
             toolWindow.getContentManager().addContent(contentFactory.createContent(scrollLogPanel, "日志", true));
+            isInstall = true;
             toolWindow.show();
         }
+
     }
 
     public static LogContext getInstance(Project project) {
