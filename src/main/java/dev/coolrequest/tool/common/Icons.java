@@ -15,4 +15,5 @@ public interface Icons {
     Icon ENV = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/env.svg"));
     Icon CLEAR = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/clear.svg"));
     Icon REFRESH = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/refresh.svg"));
+    Icon OPEN = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/open.svg"));
 }
