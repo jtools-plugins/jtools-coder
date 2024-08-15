@@ -6,6 +6,7 @@ import com.intellij.openapi.editor.EditorSettings;
 import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.LanguageTextField;
 import dev.coolrequest.tool.common.LogContext;
 import dev.coolrequest.tool.common.Logger;
@@ -17,6 +18,15 @@ public class MultiLanguageTextField extends LanguageTextField {
     private final Logger logger;
 
     private LanguageFileType languageFileType;
+
+    public MultiLanguageTextField(LanguageFileType languageFileType, Project project, String title) {
+        this(languageFileType, project, new SimpleDocumentCreator() {
+            @Override
+            public void customizePsiFile(PsiFile file) {
+                file.setName(title);
+            }
+        });
+    }
 
     public MultiLanguageTextField(LanguageFileType languageFileType, Project project) {
         this(languageFileType, project, new SimpleDocumentCreator());

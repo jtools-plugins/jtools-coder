@@ -21,7 +21,9 @@ import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.ProjectState;
 import dev.coolrequest.tool.state.ProjectStateManager;
 import dev.coolrequest.tool.utils.ClassLoaderUtils;
+import dev.coolrequest.tool.utils.ComponentUtils;
 import dev.coolrequest.tool.utils.LibraryUtils;
+import dev.coolrequest.tool.utils.ProjectUtils;
 import groovy.lang.Binding;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyShell;
@@ -49,9 +51,9 @@ public class ScriptView extends JPanel {
     private final Logger contextLogger;
     private final Project project;
 
-    private MultiLanguageTextField languageTextField;
+    private final MultiLanguageTextField languageTextField;
 
-    private final JBTextArea classPathTextArea = new JBTextArea();
+    private final JBTextArea classPathTextArea;
 
 
     public ScriptView(Project project) {
@@ -59,27 +61,23 @@ public class ScriptView extends JPanel {
         this.project = project;
         this.sysLog = LogContext.getSysLog(project);
         this.contextLogger = LogContext.getLogger("Groovy", project);
-        this.languageTextField = project.getUserData(GlobalConstant.CODER_GROOVY_CODE_KEY);
-        if (languageTextField == null) {
+        this.languageTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CODE_KEY, () -> {
             LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            this.languageTextField = new MultiLanguageTextField(groovyFileType, project);
-            project.putUserData(GlobalConstant.CODER_GROOVY_CODE_KEY, this.languageTextField);
-        }
+            return new MultiLanguageTextField(groovyFileType, project,"CoderGroovy.groovy");
+        });
+        this.classPathTextArea = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CLASSPATH_KEY, () -> {
+            JBTextArea jbTextArea = new JBTextArea();
+            Font font = jbTextArea.getFont();
+            if (font != null) {
+                jbTextArea.setFont(new Font(font.getName(), font.getStyle(), 14));
+            } else {
+                jbTextArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+            }
+            return jbTextArea;
+        });
         ProjectStateManager.load(project)
                 .getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH)
-                .ifPresent(text -> {
-                    DumbService.getInstance(project).runWhenSmart(() -> {
-                        LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", text);
-                    });
-                    Font font = classPathTextArea.getFont();
-                    if (font != null) {
-                        classPathTextArea.setFont(new Font(font.getName(), font.getStyle(), 14));
-                    } else {
-                        classPathTextArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-                    }
-                    classPathTextArea.setText(text);
-                });
-
+                .ifPresent(classPathTextArea::setText);
         CodePanel codePanel = new CodePanel(project);
         this.add(codePanel, BorderLayout.CENTER);
     }
@@ -259,9 +257,9 @@ public class ScriptView extends JPanel {
                         boolean hasExist = false;
                         for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
                             VirtualFile file = allEditor.getFile();
-                            if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(),file.getPath())) {
+                            if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
                                 fileEditorManager.closeFile(file);
-                            } else if(virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(),file.getPath())){
+                            } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
                                 hasExist = true;
                             }
                         }
@@ -269,24 +267,16 @@ public class ScriptView extends JPanel {
                             FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
                             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", new DefaultActionGroup(usingProjectLibrary, refreshDepend, run), true);
                             for (FileEditor fileEditor : fileEditors) {
-                                fileEditorManager.addTopComponent(fileEditor, createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()));
+                                fileEditorManager.addTopComponent(fileEditor, ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()));
                             }
                         }
                     }
                 }
             });
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", defaultActionGroup, true);
-            add(createFlowLayoutPanel(FlowLayout.LEFT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()), BorderLayout.NORTH);
+            add(ComponentUtils.createFlowLayoutPanel(FlowLayout.LEFT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()), BorderLayout.NORTH);
             add(languageTextField, BorderLayout.CENTER);
         }
     }
 
-
-    private JPanel createFlowLayoutPanel(int layout, JComponent... components) {
-        JPanel jPanel = new JPanel(new FlowLayout(layout));
-        for (JComponent component : components) {
-            jPanel.add(component);
-        }
-        return jPanel;
-    }
 }
