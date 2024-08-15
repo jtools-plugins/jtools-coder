@@ -1,5 +1,14 @@
 package dev.coolrequest.tool.components;
 
+import com.intellij.openapi.actionSystem.ActionGroup;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.editor.event.EditorMouseEvent;
+import com.intellij.openapi.editor.ex.EditorEx;
+import com.intellij.openapi.editor.impl.ContextMenuPopupHandler;
+import org.jetbrains.annotations.NotNull;
+
 import javax.swing.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -27,6 +36,21 @@ public class PopupMenu extends JPopupMenu {
         });
         textArea.setComponentPopupMenu(popupMenu);
 //        textArea.addMouseListener(popupMenu.createRightClickMouseAdapter());
+    }
+
+    public static void attachClearMenu(String title, Icon icon, EditorEx editorEx){
+        editorEx.installPopupHandler(new ContextMenuPopupHandler(){
+
+            @Override
+            public ActionGroup getActionGroup(@NotNull EditorMouseEvent editorMouseEvent) {
+                return new DefaultActionGroup(new AnAction(() -> title,icon) {
+                    @Override
+                    public void actionPerformed(@NotNull AnActionEvent event) {
+                        editorEx.getDocument().setText("");
+                    }
+                });
+            }
+        });
     }
 
     public void rightClickShow(MouseEvent e) {
