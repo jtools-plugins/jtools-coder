@@ -1,6 +1,8 @@
 package dev.coolrequest.tool.views.script;
 
 import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.project.DumbService;
@@ -9,7 +11,8 @@ import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.roots.libraries.Library;
 import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.ui.LanguageTextField;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import dev.coolrequest.tool.common.*;
@@ -44,7 +47,9 @@ public class ScriptView extends JPanel {
 
     private final Logger sysLog;
     private final Logger contextLogger;
-    private Project project;
+    private final Project project;
+
+    private MultiLanguageTextField languageTextField;
 
     private final JBTextArea classPathTextArea = new JBTextArea();
 
@@ -52,8 +57,14 @@ public class ScriptView extends JPanel {
     public ScriptView(Project project) {
         super(new BorderLayout());
         this.project = project;
-        sysLog = LogContext.getSysLog(project);
+        this.sysLog = LogContext.getSysLog(project);
         this.contextLogger = LogContext.getLogger("Groovy", project);
+        this.languageTextField = project.getUserData(GlobalConstant.CODER_GROOVY_CODE_KEY);
+        if (languageTextField == null) {
+            LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
+            this.languageTextField = new MultiLanguageTextField(groovyFileType, project);
+            project.putUserData(GlobalConstant.CODER_GROOVY_CODE_KEY, this.languageTextField);
+        }
         ProjectStateManager.load(project)
                 .getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CLASSPATH)
                 .ifPresent(text -> {
@@ -127,13 +138,9 @@ public class ScriptView extends JPanel {
 
 
     private class CodePanel extends JPanel {
-        private final LanguageTextField languageTextField;
 
-        public CodePanel(Project project) {
-            super(new BorderLayout());
-            LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            this.languageTextField = new MultiLanguageTextField(groovyFileType, project);
-            ProjectStateManager.load(project).getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CODE).ifPresent(languageTextField::setText);
+
+        public JButton classPathButton() {
             JButton button = new JButton(I18n.getString("script.addclasspath.title", project));
             button.addMouseListener(new MouseAdapter() {
 
@@ -169,6 +176,10 @@ public class ScriptView extends JPanel {
                     }
                 }
             });
+            return button;
+        }
+
+        public JButton templateCodeButton() {
             JButton templateCodeButton = new JButton(I18n.getString("script.code.template", project));
             String templateCode = ClassLoaderUtils.getResourceToString("template/ScriptTemplateCode.groovy");
             templateCodeButton.addMouseListener(new MouseAdapter() {
@@ -190,9 +201,15 @@ public class ScriptView extends JPanel {
                     }
                 }
             });
+            return templateCodeButton;
+        }
+
+        public CodePanel(Project project) {
+            super(new BorderLayout());
+            ProjectStateManager.load(project).getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CODE).ifPresent(languageTextField::setText);
             DefaultActionGroup defaultActionGroup = new DefaultActionGroup();
             ProjectState projectState = ProjectStateManager.load(project);
-            defaultActionGroup.add(new ToggleAction(() -> I18n.getString("script.usingProjectLibrary", project), Icons.LIBRARY) {
+            ToggleAction usingProjectLibrary = new ToggleAction(() -> I18n.getString("script.usingProjectLibrary", project), Icons.LIBRARY) {
 
                 @Override
                 public boolean isSelected(@NotNull AnActionEvent anActionEvent) {
@@ -207,16 +224,16 @@ public class ScriptView extends JPanel {
                         ProjectStateManager.store(project);
                     }
                 }
-            });
-            defaultActionGroup.add(new AnAction(() -> "刷新依赖", Icons.REFRESH) {
+            };
+            AnAction refreshDepend = new AnAction(() -> "刷新依赖", Icons.REFRESH) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     DumbService.getInstance(project).runWhenSmart(() -> {
                         LibraryUtils.refreshLibrary(project, "Coder:Groovy: ", classPathTextArea.getText());
                     });
                 }
-            });
-            defaultActionGroup.add(new AnAction(() -> "运行", Icons.RUN) {
+            };
+            AnAction run = new AnAction(() -> "运行", Icons.RUN) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     //显示日志面板
@@ -228,16 +245,45 @@ public class ScriptView extends JPanel {
                         contextLogger.warn("执行代码为空");
                     }
                 }
+            };
+            defaultActionGroup.add(usingProjectLibrary);
+            defaultActionGroup.add(refreshDepend);
+            defaultActionGroup.add(run);
+            defaultActionGroup.add(new AnAction(() -> "在文件编辑器中打开", Icons.OPEN) {
+                @Override
+                public void actionPerformed(@NotNull AnActionEvent event) {
+                    FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                    PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(languageTextField.getDocument());
+                    if (psiFile != null) {
+                        VirtualFile virtualFile = psiFile.getVirtualFile();
+                        boolean hasExist = false;
+                        for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
+                            VirtualFile file = allEditor.getFile();
+                            if (virtualFile.hashCode() != file.hashCode()) {
+                                fileEditorManager.closeFile(file);
+                            } else {
+                                hasExist = true;
+                            }
+                        }
+                        if (!hasExist) {
+                            FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
+                            ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", new DefaultActionGroup(usingProjectLibrary, refreshDepend, run), true);
+                            for (FileEditor fileEditor : fileEditors) {
+                                fileEditorManager.addTopComponent(fileEditor, createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()));
+                            }
+                        }
+                    }
+                }
             });
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", defaultActionGroup, true);
-            add(createFlowLayoutPanel(button, templateCodeButton, actionToolbar.getComponent()), BorderLayout.NORTH);
+            add(createFlowLayoutPanel(FlowLayout.LEFT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()), BorderLayout.NORTH);
             add(languageTextField, BorderLayout.CENTER);
         }
     }
 
 
-    private JPanel createFlowLayoutPanel(JComponent... components) {
-        JPanel jPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    private JPanel createFlowLayoutPanel(int layout, JComponent... components) {
+        JPanel jPanel = new JPanel(new FlowLayout(layout));
         for (JComponent component : components) {
             jPanel.add(component);
         }

@@ -9,12 +9,8 @@ import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
 
 import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class LogContext {
-
-    private static final Map<String, LogContext> CACHE = new ConcurrentHashMap<>();
 
     private final Project project;
     private final BuildTextConsoleView consoleView;
@@ -25,7 +21,8 @@ public class LogContext {
         toolWindow = toolWindowManager.getToolWindow(GlobalConstant.CODER_LOG_CONSOLE);
         //如果窗口存在,需要停掉之前的
         if (toolWindow != null) {
-            toolWindow.remove();
+            toolWindow.hide();
+            toolWindowManager.unregisterToolWindow(GlobalConstant.CODER_LOG_CONSOLE);
         }
         this.consoleView = new BuildTextConsoleView(project, true, Collections.emptyList());
         toolWindow = toolWindowManager.registerToolWindow(GlobalConstant.CODER_LOG_CONSOLE, false, ToolWindowAnchor.BOTTOM);
@@ -54,11 +51,18 @@ public class LogContext {
     }
 
     private void showWindow() {
-        toolWindow.show();
+        toolWindow.activate(() -> {
+
+        });
     }
 
     public static LogContext getInstance(Project project) {
-        return CACHE.computeIfAbsent(project.getLocationHash(), k -> new LogContext(project));
+        LogContext logContext = project.getUserData(GlobalConstant.CODER_LOG_CONSOLE_KEY);
+        if (logContext == null) {
+            logContext = new LogContext(project);
+            project.putUserData(GlobalConstant.CODER_LOG_CONSOLE_KEY, logContext);
+        }
+        return logContext;
     }
 
     public static Logger getSysLog(Project project) {
