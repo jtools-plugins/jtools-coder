@@ -4,11 +4,11 @@ import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
-import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.ActionToolbar;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.fileTypes.PlainTextFileType;
@@ -22,10 +22,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.JBSplitter;
-import dev.coolrequest.tool.common.CacheConstant;
-import dev.coolrequest.tool.common.I18n;
-import dev.coolrequest.tool.common.LogContext;
-import dev.coolrequest.tool.common.Logger;
+import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.GlobalState;
@@ -35,6 +32,7 @@ import dev.coolrequest.tool.state.Scope;
 import dev.coolrequest.tool.utils.ClassLoaderUtils;
 import dev.coolrequest.tool.utils.ComponentUtils;
 import dev.coolrequest.tool.utils.LibraryUtils;
+import dev.coolrequest.tool.utils.ProjectUtils;
 import dev.coolrequest.tool.views.coder.custom.*;
 import groovy.lang.Binding;
 import groovy.lang.GroovyShell;
@@ -90,14 +88,26 @@ public class CoderView extends JPanel implements DocumentListener {
                 .sorted(Comparator.comparing(Coder::ordered))
                 .collect(Collectors.toList());
         dynamicCoders = new ArrayList<>(baseCoders);
-
         this.leftTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
         this.leftTextField.getDocument().addDocumentListener(this);
         this.rightTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
         this.rightTextField.setEnabled(false);
-        //代码面板
-        LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-        this.codeTextField = new MultiLanguageTextField(groovyFileType, project);
+
+        this.codeTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_CUSTOM_CODE_KEY, () -> {
+            //代码面板
+            LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
+            MultiLanguageTextField codeTextField = new MultiLanguageTextField(groovyFileType, project,"CustomCoder.groovy");
+            ProjectState projectState = ProjectStateManager.load(project);
+            if (projectState.getScope() == Scope.PROJECT) {
+                String script = projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
+                codeTextField.setText(script);
+            } else {
+                String script = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
+                codeTextField.setText(script);
+            }
+            return codeTextField;
+        });
+
         leftSource = new LeftSource();
         rightTarget = new RightTarget(project, createGroovyShell(project, () -> {
             ProjectState projectState = ProjectStateManager.load(project);
@@ -152,7 +162,6 @@ public class CoderView extends JPanel implements DocumentListener {
         JBSplitter jbSplitter = new JBSplitter();
         jbSplitter.setFirstComponent(leftSource);
         jbSplitter.setSecondComponent(rightTarget);
-
         add(jbSplitter, BorderLayout.CENTER);
     }
 
@@ -222,7 +231,6 @@ public class CoderView extends JPanel implements DocumentListener {
      * @return
      */
     private Supplier<GroovyShell> createGroovyShell(Project project, Supplier<String> classpathSupplier) {
-
         return () -> {
             GroovyShell groovyShell = new GroovyShell(CoderView.class.getClassLoader());
             if (ProjectStateManager.load(project).isCustomCoderUsingProjectLibrary()) {
@@ -345,6 +353,12 @@ public class CoderView extends JPanel implements DocumentListener {
                         disposes.forEach(Runnable::run);
                         state.set(false);
                     }
+
+                    @Override
+                    public void windowClosed(WindowEvent e) {
+                        disposes.forEach(Runnable::run);
+                        state.set(false);
+                    }
                 });
             } else {
                 this.coder.toFront();
@@ -352,14 +366,6 @@ public class CoderView extends JPanel implements DocumentListener {
         }
 
         private JComponent createCustomCoderPanel(Supplier<GroovyShell> groovyShell, List<Runnable> disposeRegistry) {
-            ProjectState projectState = ProjectStateManager.load(project);
-            if (projectState.getScope() == Scope.PROJECT) {
-                String script = projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
-                codeTextField.setText(script);
-            } else {
-                String script = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
-                codeTextField.setText(script);
-            }
             //设置actionGroup
             DefaultActionGroup defaultActionGroup = new DefaultActionGroup();
             defaultActionGroup.add(new EnvAction(project, disposeRegistry));
@@ -371,6 +377,45 @@ public class CoderView extends JPanel implements DocumentListener {
             defaultActionGroup.add(new EditClassPathAction(project));
             defaultActionGroup.add(new RefreshClassPathAction(project));
             defaultActionGroup.add(new ChangeScopeAction(codeTextField, project));
+            defaultActionGroup.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
+
+                @Override
+                public void actionPerformed(@NotNull AnActionEvent event) {
+                    FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                    PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(codeTextField.getDocument());
+                    if (psiFile != null) {
+                        VirtualFile virtualFile = psiFile.getVirtualFile();
+                        boolean hasExist = false;
+                        for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
+                            VirtualFile file = allEditor.getFile();
+                            if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                                fileEditorManager.closeFile(file);
+                            } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                                hasExist = true;
+                            }
+                        }
+                        if (!hasExist) {
+                            FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
+                            DefaultActionGroup editorGroup = new DefaultActionGroup();
+                            editorGroup.add(new EnvAction(project, disposeRegistry));
+                            editorGroup.add(new DemoAction(codeTextField, project));
+                            editorGroup.add(new CompileAction(codeTextField, groovyShell, project, contextLogger));
+                            editorGroup.add(new InstallAction(codeTextField, groovyShell, coderSourceBox, baseCoders, dynamicCoders, project, contextLogger));
+                            editorGroup.add(new UsingProjectLibraryAction(project));
+                            editorGroup.add(new RunAction(codeTextField, groovyShell, project, contextLogger));
+                            editorGroup.add(new EditClassPathAction(project));
+                            editorGroup.add(new RefreshClassPathAction(project));
+                            editorGroup.add(new ChangeScopeAction(codeTextField, project));
+                            ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("CustomCoderEditor@ToolBar", editorGroup, true);
+                            for (FileEditor fileEditor : fileEditors) {
+                                fileEditorManager.addTopComponent(fileEditor, ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, actionToolbar.getComponent()));
+                            }
+                        }
+
+                        coder.dispose();
+                    }
+                }
+            });
             SimpleToolWindowPanel panel = new SimpleToolWindowPanel(true, false);
             panel.registerKeyboardAction(new AbstractAction() {
                 @Override

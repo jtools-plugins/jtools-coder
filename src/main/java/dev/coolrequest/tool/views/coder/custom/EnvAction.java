@@ -16,6 +16,7 @@ import dev.coolrequest.tool.state.ProjectState;
 import dev.coolrequest.tool.state.ProjectStateManager;
 import dev.coolrequest.tool.state.Scope;
 import dev.coolrequest.tool.utils.ComponentUtils;
+import dev.coolrequest.tool.utils.ProjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.yaml.snakeyaml.Yaml;
@@ -51,15 +52,18 @@ public class EnvAction extends AnAction {
         });
         this.projectState = ProjectStateManager.load(project);
         String envFileType = getScopeStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT_TYPE, GlobalConstant.ENV_SUPPORT_TYPES[0]);
-        LanguageFileType fileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension(envFileType);
         this.project = project;
         this.logger = LogContext.getInstance(project).getLogger(EnvAction.class);
         this.comboBox = new ComboBox<>(GlobalConstant.ENV_SUPPORT_TYPES);
-        this.multiLanguageFieldText = new MultiLanguageTextField(fileType, project);
-        this.multiLanguageFieldText.setPlaceholder("请点击确认将环境保存,点击关闭或者取消,会导致环境无法保存,请谨慎操作\r\n.json支持json5,可以在json内容中添加注释\r\n.xml使用Properties.loadFromXml(),格式请参考http://java.sun.com/dtd/properties.dtd");
-        this.multiLanguageFieldText.setShowPlaceholderWhenFocused(true);
-        String envText = getScopeStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT_TEXT, "");
-        this.multiLanguageFieldText.setText(envText);
+        this.multiLanguageFieldText = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_CUSTOM_ENV_KEY, () -> {
+            LanguageFileType fileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension(envFileType);
+            MultiLanguageTextField multiLanguageFieldText = new MultiLanguageTextField(fileType, project);
+            multiLanguageFieldText.setPlaceholder("请点击确认将环境保存,点击关闭或者取消,会导致环境无法保存,请谨慎操作\r\n.json支持json5,可以在json内容中添加注释\r\n.xml使用Properties.loadFromXml(),格式请参考http://java.sun.com/dtd/properties.dtd");
+            multiLanguageFieldText.setShowPlaceholderWhenFocused(true);
+            String envText = getScopeStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT_TEXT, "");
+            multiLanguageFieldText.setText(envText);
+            return multiLanguageFieldText;
+        });
         this.comboBox.setSelectedItem(envFileType);
         this.comboBox.addItemListener(e -> {
             String currentSelectedItem = String.valueOf(e.getItem());

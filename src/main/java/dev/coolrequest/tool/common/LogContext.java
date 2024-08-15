@@ -7,6 +7,7 @@ import com.intellij.openapi.wm.ToolWindowAnchor;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
+import dev.coolrequest.tool.utils.ProjectUtils;
 
 import java.util.Collections;
 
@@ -57,12 +58,7 @@ public class LogContext {
     }
 
     public static LogContext getInstance(Project project) {
-        LogContext logContext = project.getUserData(GlobalConstant.CODER_LOG_CONSOLE_KEY);
-        if (logContext == null) {
-            logContext = new LogContext(project);
-            project.putUserData(GlobalConstant.CODER_LOG_CONSOLE_KEY, logContext);
-        }
-        return logContext;
+        return ProjectUtils.getOrCreate(project, GlobalConstant.CODER_LOG_CONSOLE_KEY, () -> new LogContext(project));
     }
 
     public static Logger getSysLog(Project project) {
