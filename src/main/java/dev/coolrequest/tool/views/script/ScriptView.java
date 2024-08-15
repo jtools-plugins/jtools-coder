@@ -249,7 +249,7 @@ public class ScriptView extends JPanel {
             defaultActionGroup.add(usingProjectLibrary);
             defaultActionGroup.add(refreshDepend);
             defaultActionGroup.add(run);
-            defaultActionGroup.add(new AnAction(() -> "在文件编辑器中打开", Icons.OPEN) {
+            defaultActionGroup.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
@@ -259,9 +259,9 @@ public class ScriptView extends JPanel {
                         boolean hasExist = false;
                         for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
                             VirtualFile file = allEditor.getFile();
-                            if (virtualFile.hashCode() != file.hashCode()) {
+                            if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(),file.getPath())) {
                                 fileEditorManager.closeFile(file);
-                            } else {
+                            } else if(virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(),file.getPath())){
                                 hasExist = true;
                             }
                         }
