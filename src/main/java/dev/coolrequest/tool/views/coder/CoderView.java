@@ -311,6 +311,7 @@ public class CoderView extends JPanel implements DocumentListener {
                         if (StringUtils.isBlank(leftTextField.getText()) && StringUtils.isBlank(rightTextField.getText())) {
                             return;
                         }
+                        LogContext.show(project);
                         contextLogger.warn("清空编辑器中的内容中...");
                         contextLogger.warn("left: \n" + leftTextField.getText());
                         contextLogger.warn("right: \n" + rightTextField.getText());
