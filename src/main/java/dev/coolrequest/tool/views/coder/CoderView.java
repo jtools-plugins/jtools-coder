@@ -298,7 +298,11 @@ public class CoderView extends JPanel implements DocumentListener {
         for (Coder coder : this.dynamicCoders) {
             if (coder.kind().is(String.valueOf(sourceCoderValue), String.valueOf(targetValue))) {
                 //转换
-                rightTextField.setText(coder.transform(this.leftTextField.getText()));
+                try{
+                    rightTextField.setText(coder.transform(this.leftTextField.getText()));
+                }catch (Throwable e){
+                    rightTextField.setText(e.getMessage());
+                }
             }
         }
     }
