@@ -32,7 +32,7 @@ public class InstallAction extends AnAction {
 
     private final MultiLanguageTextField codeTextField;
     private final Supplier<GroovyShell> groovyShell;
-    private final JComboBox<String> coderSourceBox;
+    private final DefaultComboBoxModel<String> coderSourceBox;
     private final List<Coder> baseCoders;
     private final List<Coder> dynamicCoders;
     private final Project project;
@@ -42,7 +42,7 @@ public class InstallAction extends AnAction {
 
     public InstallAction(MultiLanguageTextField codeTextField,
                          Supplier<GroovyShell> groovyShell,
-                         JComboBox<String> coderSourceBox,
+                         DefaultComboBoxModel<String> coderSourceBox,
                          List<Coder> baseCoders,
                          List<Coder> dynamicCoders,
                          Project project, Logger contextLogger) {
@@ -94,9 +94,9 @@ public class InstallAction extends AnAction {
                     //填充左侧下拉框内容
                     source.add(coderItem.kind().source);
                 });
-                coderSourceBox.removeAllItems();
+                coderSourceBox.removeAllElements();
                 //添加到box中
-                source.forEach(coderSourceBox::addItem);
+                source.forEach(coderSourceBox::addElement);
                 if (this.projectState.getScope() == Scope.PROJECT) {
                     projectState.putCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE, codeTextField.getText());
                     ProjectStateManager.store(project);
