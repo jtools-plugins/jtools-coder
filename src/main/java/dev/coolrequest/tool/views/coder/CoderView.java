@@ -9,9 +9,12 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.impl.EditorComposite;
+import com.intellij.openapi.fileEditor.impl.FileEditorManagerImpl;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.fileTypes.PlainTextFileType;
+import com.intellij.openapi.fileTypes.PlainTextLanguage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.roots.libraries.Library;
@@ -21,6 +24,7 @@ import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiFileFactory;
 import com.intellij.ui.JBSplitter;
 import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
@@ -69,9 +73,11 @@ public class CoderView extends JPanel implements DocumentListener {
     private final Project project;
     private final Logger sysLogger;
     private final MultiLanguageTextField codeTextField;
+    private final boolean isEditor;
 
-    public CoderView(Project project) {
+    public CoderView(Project project,boolean isEditor) {
         super(new BorderLayout());
+        this.isEditor = isEditor;
         this.project = project;
         this.contextLogger = LogContext.getLogger("Coder", project);
         this.sysLogger = LogContext.getSysLog(project);
@@ -96,7 +102,7 @@ public class CoderView extends JPanel implements DocumentListener {
         this.codeTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_CUSTOM_CODE_KEY, () -> {
             //代码面板
             LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            MultiLanguageTextField codeTextField = new MultiLanguageTextField(groovyFileType, project,"CustomCoder.groovy");
+            MultiLanguageTextField codeTextField = new MultiLanguageTextField(groovyFileType, project, "CustomCoder.groovy");
             ProjectState projectState = ProjectStateManager.load(project);
             if (projectState.getScope() == Scope.PROJECT) {
                 String script = projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
@@ -115,7 +121,7 @@ public class CoderView extends JPanel implements DocumentListener {
                 return projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("");
             }
             return GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("");
-        }));
+        }), isEditor);
         ProjectState projectState = ProjectStateManager.load(project);
         projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).filter(StringUtils::isNotBlank).ifPresent(classpath -> LibraryUtils.refreshLibrary(project, "Coder:Custom:Project: ", classpath));
         GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).filter(StringUtils::isNotBlank).ifPresent(classpath -> LibraryUtils.refreshLibrary(project, "Coder:Custom:Global: ", classpath));
@@ -123,7 +129,9 @@ public class CoderView extends JPanel implements DocumentListener {
         String globalCustomCoderScript = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse(null);
         if (customCoderScript != null || globalCustomCoderScript != null) {
             LogContext.show(project);
-            contextLogger.info("load custom coders");
+            if(!isEditor){
+                contextLogger.info("load custom coders");
+            }
             if (customCoderScript != null) {
                 loadCustomCoders(customCoderScript, createGroovyShell(project, () -> ProjectStateManager.load(project).getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("")));
             }
@@ -214,14 +222,18 @@ public class CoderView extends JPanel implements DocumentListener {
             //添加到box中
             source.forEach(coderSourceBox::addItem);
             target.forEach(coderTargetBox::addItem);
-            this.contextLogger.info("load coders: " + dynamicCoders);
-            this.contextLogger.info("coder sources: " + source);
-            this.contextLogger.info("target sources: " + target);
+            if(!isEditor){
+                this.contextLogger.info("load coders: " + dynamicCoders);
+                this.contextLogger.info("coder sources: " + source);
+                this.contextLogger.info("target sources: " + target);
+            }
         }
         List<Coder> noRegistryCoders = coderRegistry.getNoRegistryCoders();
         if (CollectionUtils.isNotEmpty(noRegistryCoders)) {
             String noRegistryCodersLog = noRegistryCoders.stream().map(item -> String.format("source: %s, target: %s", item.kind().source, item.kind().target)).collect(Collectors.joining("\n"));
-            contextLogger.info("以上coder已经存在,不能注册: \n" + noRegistryCodersLog);
+            if (!isEditor) {
+                contextLogger.info("以上coder已经存在,不能注册: \n" + noRegistryCodersLog);
+            }
         }
     }
 
@@ -295,46 +307,76 @@ public class CoderView extends JPanel implements DocumentListener {
         private final AtomicBoolean state = new AtomicBoolean(false);
         private SimpleFrame coder;
 
-        public RightTarget(Project project, Supplier<GroovyShell> groovyShell) {
+        public RightTarget(Project project, Supplier<GroovyShell> groovyShell, boolean hasEditor) {
             super(new BorderLayout());
             this.project = project;
-            JButton customCoder = new JButton(I18n.getString("coder.custom.title", project));
-            customCoder.addMouseListener(new MouseAdapter() {
+            DefaultActionGroup group = new DefaultActionGroup();
+            AnAction clearAction = new AnAction(() -> I18n.getString("coder.editor.clear", project), Icons.CLEAR) {
                 @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (e.getButton() == MouseEvent.BUTTON1) {
-                        try {
-                            customCoderMouseClicked(groovyShell);
-                        } catch (Throwable err) {
-                            Messages.showErrorDialog(err.getMessage(), I18n.getString("coder.custom.title", project));
-                        }
+                public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
+                    if (StringUtils.isBlank(leftTextField.getText()) && StringUtils.isBlank(rightTextField.getText())) {
+                        return;
+                    }
+                    LogContext.show(project);
+                    contextLogger.warn("清空编辑器中的内容中...");
+                    contextLogger.warn("left: \n" + leftTextField.getText());
+                    contextLogger.warn("right: \n" + rightTextField.getText());
+                    leftTextField.setText("");
+                    rightTextField.setText("");
+                    contextLogger.warn("清空编辑器中的内容完毕");
+                }
+            };
+            AnAction addAction = new AnAction(() -> I18n.getString("coder.custom.title", project), com.intellij.util.Icons.ADD_ICON) {
+                @Override
+                public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
+                    try {
+                        customCoderMouseClicked(groovyShell);
+                    } catch (Throwable err) {
+                        Messages.showErrorDialog(err.getMessage(), I18n.getString("coder.custom.title", project));
                     }
                 }
-            });
-            JButton clearButton = new JButton(I18n.getString("coder.editor.clear", project));
-            clearButton.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    if (e.getButton() == MouseEvent.BUTTON1) {
-                        if (StringUtils.isBlank(leftTextField.getText()) && StringUtils.isBlank(rightTextField.getText())) {
-                            return;
+            };
+            group.add(clearAction);
+            group.add(addAction);
+            if (!hasEditor) {
+                group.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
+                    @Override
+                    public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
+                        PsiFile psiFile = ProjectUtils.getOrCreate(project,GlobalConstant.CODER_EDITOR_PANEL_KEY,() -> {
+                            PsiFile file = PsiFileFactory.getInstance(project).createFileFromText(PlainTextLanguage.INSTANCE, "");
+                            file.setName("Coder");
+                            return file;
+                        });
+                        FileEditorManagerImpl fileEditorManager = (FileEditorManagerImpl) FileEditorManager.getInstance(project);
+                        VirtualFile virtualFile = psiFile.getVirtualFile();
+                        boolean hasExist = false;
+                        for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
+                            VirtualFile file = allEditor.getFile();
+                            if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                                fileEditorManager.closeFile(file);
+                            } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                                fileEditorManager.openFile(file,true);
+                                hasExist = true;
+                            }
                         }
-                        LogContext.show(project);
-                        contextLogger.warn("清空编辑器中的内容中...");
-                        contextLogger.warn("left: \n" + leftTextField.getText());
-                        contextLogger.warn("right: \n" + rightTextField.getText());
-                        leftTextField.setText("");
-                        rightTextField.setText("");
-                        contextLogger.warn("清空编辑器中的内容完毕");
+                        if (!hasExist) {
+                            FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
+                            for (FileEditor fileEditor : fileEditors) {
+                                EditorComposite composite = fileEditorManager.getComposite(fileEditor);
+                                if (composite != null) {
+                                    JComponent component = composite.getComponent();
+                                    component.removeAll();
+                                    component.add(new CoderView(project,true));
+                                }
+                            }
+                        }
                     }
-                }
-            });
-            JPanel jPanel = new JPanel(new GridLayout(1, 3));
-            jPanel.add(coderTargetBox);
-            jPanel.add(clearButton);
-            jPanel.add(customCoder);
+                });
+            }
+            ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("Coder@Toolbar", group, true);
+            JPanel panel = ComponentUtils.createFlowLayoutPanel(FlowLayout.LEFT, coderTargetBox, actionToolbar.getComponent());
             //添加下拉框,左对齐
-            add(ComponentUtils.createFlowLayoutPanel(jPanel, FlowLayout.LEFT), BorderLayout.NORTH);
+            add(panel, BorderLayout.NORTH);
             //内容框
             add(new JScrollPane(rightTextField), BorderLayout.CENTER);
         }
@@ -391,6 +433,7 @@ public class CoderView extends JPanel implements DocumentListener {
                             if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
                                 fileEditorManager.closeFile(file);
                             } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                                fileEditorManager.openFile(file, true);
                                 hasExist = true;
                             }
                         }

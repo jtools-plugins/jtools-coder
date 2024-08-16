@@ -24,7 +24,7 @@ public class MainPanel extends JPanel implements CoolToolPanel {
             //初始化
             LogContext.getInstance(project);
             JBTabs jbTabs = new JBTabsImpl(project);
-            TabInfo encoderTabInfo = new TabInfo(new CoderView(project));
+            TabInfo encoderTabInfo = new TabInfo(new CoderView(project,false));
             encoderTabInfo.setText(I18n.getString("coder.title", project));
             jbTabs.addTab(encoderTabInfo);
 

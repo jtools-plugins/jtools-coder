@@ -260,6 +260,7 @@ public class ScriptView extends JPanel {
                             if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
                                 fileEditorManager.closeFile(file);
                             } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                                fileEditorManager.openFile(file,true);
                                 hasExist = true;
                             }
                         }
