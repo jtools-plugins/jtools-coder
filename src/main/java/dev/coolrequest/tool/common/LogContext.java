@@ -5,10 +5,12 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowAnchor;
 import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
 import dev.coolrequest.tool.utils.ProjectUtils;
 
+import java.awt.event.InputEvent;
 import java.util.Collections;
 
 public class LogContext {
@@ -52,9 +54,9 @@ public class LogContext {
     }
 
     private void showWindow() {
-        toolWindow.activate(() -> {
-
-        });
+        Content content = toolWindow.getContentManager().findContent("日志");
+        toolWindow.getContentManager().setSelectedContent(content,true,true);
+        toolWindow.show();
     }
 
     public static LogContext getInstance(Project project) {
