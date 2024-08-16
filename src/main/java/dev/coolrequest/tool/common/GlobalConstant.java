@@ -4,6 +4,10 @@ import com.intellij.openapi.util.Key;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBTextArea;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
+import dev.coolrequest.tool.views.coder.Coder;
+
+import javax.swing.*;
+import java.util.List;
 
 public interface GlobalConstant {
 
@@ -41,4 +45,21 @@ public interface GlobalConstant {
      * 缓存在编辑器中打开coder的面板
      */
     Key<PsiFile> CODER_EDITOR_PANEL_KEY = Key.create("CoderEditorPanel");
+
+    /**
+     * 缓存coders
+     */
+    Key<List<Coder>> CODER_KEY = Key.create("CoderKey");
+
+
+    /**
+     * 缓存source comboBox
+     */
+    Key<DefaultComboBoxModel<String>> CODER_SOURCE_BOX_MODEL_KEY = Key.create("CoderSourceBoxModel");
+
+    /**
+     * 缓存target comboBox
+     */
+    Key<DefaultComboBoxModel<String>> CODER_TARGET_BOX_MODEL_KEY = Key.create("CoderTargetBoxModel");
+
 }

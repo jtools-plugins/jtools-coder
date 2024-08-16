@@ -22,10 +22,15 @@ import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
 import com.intellij.ui.JBSplitter;
+import com.intellij.ui.content.Content;
+import com.intellij.ui.content.ContentFactory;
+import com.intellij.ui.content.ContentManager;
 import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
@@ -35,7 +40,6 @@ import dev.coolrequest.tool.state.ProjectStateManager;
 import dev.coolrequest.tool.state.Scope;
 import dev.coolrequest.tool.utils.ClassLoaderUtils;
 import dev.coolrequest.tool.utils.ComponentUtils;
-import dev.coolrequest.tool.utils.LibraryUtils;
 import dev.coolrequest.tool.utils.ProjectUtils;
 import dev.coolrequest.tool.views.coder.custom.*;
 import groovy.lang.Binding;
@@ -74,10 +78,13 @@ public class CoderView extends JPanel implements DocumentListener {
     private final Logger sysLogger;
     private final MultiLanguageTextField codeTextField;
     private final boolean isEditor;
+    private final boolean isConsole;
+    private final DefaultComboBoxModel<String> sourceComboBoxModel;
 
-    public CoderView(Project project,boolean isEditor) {
+    public CoderView(Project project, boolean isEditor, boolean isConsole) {
         super(new BorderLayout());
         this.isEditor = isEditor;
+        this.isConsole = isConsole;
         this.project = project;
         this.contextLogger = LogContext.getLogger("Coder", project);
         this.sysLogger = LogContext.getSysLog(project);
@@ -93,7 +100,7 @@ public class CoderView extends JPanel implements DocumentListener {
                 .map(Coder.class::cast)
                 .sorted(Comparator.comparing(Coder::ordered))
                 .collect(Collectors.toList());
-        dynamicCoders = new ArrayList<>(baseCoders);
+
         this.leftTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
         this.leftTextField.getDocument().addDocumentListener(this);
         this.rightTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
@@ -121,50 +128,67 @@ public class CoderView extends JPanel implements DocumentListener {
                 return projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("");
             }
             return GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("");
-        }), isEditor);
-        ProjectState projectState = ProjectStateManager.load(project);
-        projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).filter(StringUtils::isNotBlank).ifPresent(classpath -> LibraryUtils.refreshLibrary(project, "Coder:Custom:Project: ", classpath));
-        GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).filter(StringUtils::isNotBlank).ifPresent(classpath -> LibraryUtils.refreshLibrary(project, "Coder:Custom:Global: ", classpath));
-        String customCoderScript = projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse(null);
-        String globalCustomCoderScript = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse(null);
-        if (customCoderScript != null || globalCustomCoderScript != null) {
-            LogContext.show(project);
-            if(!isEditor){
-                contextLogger.info("load custom coders");
-            }
-            if (customCoderScript != null) {
-                loadCustomCoders(customCoderScript, createGroovyShell(project, () -> ProjectStateManager.load(project).getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("")));
-            }
-            if (globalCustomCoderScript != null) {
-                loadCustomCoders(globalCustomCoderScript, createGroovyShell(project, () -> GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("")));
-            }
-        } else {
-            //左侧下拉框内容
-            Set<String> source = new LinkedHashSet<>();
-            //右侧下拉框内容
-            Set<String> target = new HashSet<>();
-            dynamicCoders.sort(Comparator.comparing(Coder::ordered));
-            //左侧第一个下拉框对应的Coder
-            Coder coder = dynamicCoders.get(0);
-            dynamicCoders.forEach(coderItem -> {
-                //填充左侧下拉框内容
-                source.add(coderItem.kind().source);
-                //填充右侧下拉框内容,前提是左侧第一个下拉框支持的
-                if (StringUtils.equals(coderItem.kind().source, coder.kind().source)) {
-                    target.add(coderItem.kind().target);
-                }
-            });
+        }));
 
-            //添加到box中
-            source.forEach(coderSourceBox::addItem);
-            target.forEach(coderTargetBox::addItem);
-        }
+        dynamicCoders = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_KEY, () -> {
+            List<Coder> coders = new ArrayList<>(baseCoders);
+            ProjectState projectState = ProjectStateManager.load(project);
+            String customCoderScript = projectState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse(null);
+            String globalCustomCoderScript = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse(null);
+            if (customCoderScript != null || globalCustomCoderScript != null) {
+                LogContext.show(project);
+                if (!isEditor) {
+                    contextLogger.info("load custom coders");
+                }
+                if (customCoderScript != null) {
+                    loadCustomCoders(coders, customCoderScript, createGroovyShell(project, () -> ProjectStateManager.load(project).getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("")));
+                }
+                if (globalCustomCoderScript != null) {
+                    loadCustomCoders(coders, globalCustomCoderScript, createGroovyShell(project, () -> GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("")));
+                }
+            }
+            coders.sort(Comparator.comparing(Coder::ordered));
+            return coders;
+        });
+
+        //左侧下拉框内容
+        Set<String> source = new LinkedHashSet<>();
+        //右侧下拉框内容
+        Set<String> target = new HashSet<>();
+
+        //左侧第一个下拉框对应的Coder
+        Coder coder = dynamicCoders.get(0);
+        dynamicCoders.forEach(coderItem -> {
+            //填充左侧下拉框内容
+            source.add(coderItem.kind().source);
+            //填充右侧下拉框内容,前提是左侧第一个下拉框支持的
+            if (StringUtils.equals(coderItem.kind().source, coder.kind().source)) {
+                target.add(coderItem.kind().target);
+            }
+        });
+
+        this.sourceComboBoxModel = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_SOURCE_BOX_MODEL_KEY, () -> {
+            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(source.toArray(new String[0]));
+            model.addAll(source);
+            return model;
+        });
+
+        DefaultComboBoxModel<String> targetComboBoxModel = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_TARGET_BOX_MODEL_KEY, () -> {
+            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(source.toArray(new String[0]));
+            model.addAll(target);
+            return model;
+        });
+
+        coderSourceBox.setModel(sourceComboBoxModel);
+
+        coderTargetBox.setModel(targetComboBoxModel);
+
         //添加左侧下拉框数据变更监听器,当左侧下拉框数据发生变更,联动更新右侧下拉框内容
         coderSourceBox.addItemListener(e -> {
-            String sourceValue = String.valueOf(coderSourceBox.getSelectedItem());
-            coderTargetBox.removeAllItems();
-            dynamicCoders.stream().filter(item -> StringUtils.equals(item.kind().source, sourceValue)).map(item -> item.kind().target).forEach(coderTargetBox::addItem);
-            transform();
+            String sourceValue = String.valueOf(sourceComboBoxModel.getSelectedItem());
+            targetComboBoxModel.removeAllElements();
+            dynamicCoders.stream().filter(item -> StringUtils.equals(item.kind().source, sourceValue)).map(item -> item.kind().target).forEach(targetComboBoxModel::addElement);
+//            transform();
         });
         coderTargetBox.addItemListener(e -> transform());
         JBSplitter jbSplitter = new JBSplitter();
@@ -176,11 +200,12 @@ public class CoderView extends JPanel implements DocumentListener {
     /**
      * 加载自定义coder
      *
+     * @param coders
      * @param customCoderScript
      * @param groovyShell
      */
-    private void loadCustomCoders(String customCoderScript, Supplier<GroovyShell> groovyShell) {
-        CoderRegistry coderRegistry = new CoderRegistry(dynamicCoders);
+    private void loadCustomCoders(List<Coder> coders, String customCoderScript, Supplier<GroovyShell> groovyShell) {
+        CoderRegistry coderRegistry = new CoderRegistry(coders);
         Binding binding = new Binding();
         binding.setVariable("coder", coderRegistry);
         binding.setVariable("sysLog", sysLogger);
@@ -199,17 +224,17 @@ public class CoderView extends JPanel implements DocumentListener {
             contextLogger.error("安装自定义coder失败,错误信息: " + e.getMessage());
         }
         if (CollectionUtils.isNotEmpty(coderRegistry.getRegistryCoders())) {
-            dynamicCoders.clear();
-            dynamicCoders.addAll(this.baseCoders);
-            dynamicCoders.addAll(coderRegistry.getRegistryCoders());
-            dynamicCoders.sort(Comparator.comparing(Coder::ordered));
+            coders.clear();
+            coders.addAll(this.baseCoders);
+            coders.addAll(coderRegistry.getRegistryCoders());
+            coders.sort(Comparator.comparing(Coder::ordered));
             //左侧下拉框内容
             Set<String> source = new LinkedHashSet<>();
             //右侧下拉框内容
             Set<String> target = new LinkedHashSet<>();
             //左侧第一个下拉框对应的Coder
-            Coder coder = dynamicCoders.get(0);
-            dynamicCoders.forEach(coderItem -> {
+            Coder coder = coders.get(0);
+            coders.forEach(coderItem -> {
                 //填充左侧下拉框内容
                 source.add(coderItem.kind().source);
                 //填充右侧下拉框内容,前提是左侧第一个下拉框支持的
@@ -217,23 +242,14 @@ public class CoderView extends JPanel implements DocumentListener {
                     target.add(coderItem.kind().target);
                 }
             });
-            coderSourceBox.removeAllItems();
-            coderTargetBox.removeAllItems();
-            //添加到box中
-            source.forEach(coderSourceBox::addItem);
-            target.forEach(coderTargetBox::addItem);
-            if(!isEditor){
-                this.contextLogger.info("load coders: " + dynamicCoders);
-                this.contextLogger.info("coder sources: " + source);
-                this.contextLogger.info("target sources: " + target);
-            }
+            this.contextLogger.info("load coders: " + coders);
+            this.contextLogger.info("coder sources: " + source);
+            this.contextLogger.info("target sources: " + target);
         }
         List<Coder> noRegistryCoders = coderRegistry.getNoRegistryCoders();
         if (CollectionUtils.isNotEmpty(noRegistryCoders)) {
             String noRegistryCodersLog = noRegistryCoders.stream().map(item -> String.format("source: %s, target: %s", item.kind().source, item.kind().target)).collect(Collectors.joining("\n"));
-            if (!isEditor) {
-                contextLogger.info("以上coder已经存在,不能注册: \n" + noRegistryCodersLog);
-            }
+            contextLogger.info("以上coder已经存在,不能注册: \n" + noRegistryCodersLog);
         }
     }
 
@@ -307,7 +323,7 @@ public class CoderView extends JPanel implements DocumentListener {
         private final AtomicBoolean state = new AtomicBoolean(false);
         private SimpleFrame coder;
 
-        public RightTarget(Project project, Supplier<GroovyShell> groovyShell, boolean hasEditor) {
+        public RightTarget(Project project, Supplier<GroovyShell> groovyShell) {
             super(new BorderLayout());
             this.project = project;
             DefaultActionGroup group = new DefaultActionGroup();
@@ -317,7 +333,6 @@ public class CoderView extends JPanel implements DocumentListener {
                     if (StringUtils.isBlank(leftTextField.getText()) && StringUtils.isBlank(rightTextField.getText())) {
                         return;
                     }
-                    LogContext.show(project);
                     contextLogger.warn("清空编辑器中的内容中...");
                     contextLogger.warn("left: \n" + leftTextField.getText());
                     contextLogger.warn("right: \n" + rightTextField.getText());
@@ -338,11 +353,11 @@ public class CoderView extends JPanel implements DocumentListener {
             };
             group.add(clearAction);
             group.add(addAction);
-            if (!hasEditor) {
+            if (!isEditor) {
                 group.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
                     @Override
                     public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
-                        PsiFile psiFile = ProjectUtils.getOrCreate(project,GlobalConstant.CODER_EDITOR_PANEL_KEY,() -> {
+                        PsiFile psiFile = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_EDITOR_PANEL_KEY, () -> {
                             PsiFile file = PsiFileFactory.getInstance(project).createFileFromText(PlainTextLanguage.INSTANCE, "");
                             file.setName("Coder");
                             return file;
@@ -355,7 +370,7 @@ public class CoderView extends JPanel implements DocumentListener {
                             if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
                                 fileEditorManager.closeFile(file);
                             } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
-                                fileEditorManager.openFile(file,true);
+                                fileEditorManager.openFile(file, true);
                                 hasExist = true;
                             }
                         }
@@ -366,13 +381,32 @@ public class CoderView extends JPanel implements DocumentListener {
                                 if (composite != null) {
                                     JComponent component = composite.getComponent();
                                     component.removeAll();
-                                    component.add(new CoderView(project,true));
+                                    component.add(new CoderView(project, true, false));
                                 }
                             }
                         }
                     }
                 });
             }
+
+            if (!isConsole) {
+                group.add(new AnAction(() -> "在控制台打开", Icons.CONSOLE) {
+                    @Override
+                    public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
+                        ToolWindowManager toolWindowManager = ToolWindowManager.getInstance(project);
+                        ToolWindow toolWindow = toolWindowManager.getToolWindow(GlobalConstant.CODER_LOG_CONSOLE);
+                        ContentManager contentManager = toolWindow.getContentManager();
+                        Content coderContent = contentManager.findContent("Coder");
+                        if (coderContent == null) {
+                            ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
+                            contentManager.addContent(contentFactory.createContent(new CoderView(project, false, true), "Coder", true));
+                        }
+                        toolWindow.show();
+                    }
+                });
+
+            }
+
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("Coder@Toolbar", group, true);
             JPanel panel = ComponentUtils.createFlowLayoutPanel(FlowLayout.LEFT, coderTargetBox, actionToolbar.getComponent());
             //添加下拉框,左对齐
@@ -413,7 +447,7 @@ public class CoderView extends JPanel implements DocumentListener {
             defaultActionGroup.add(new EnvAction(project, disposeRegistry));
             defaultActionGroup.add(new DemoAction(codeTextField, project));
             defaultActionGroup.add(new CompileAction(codeTextField, groovyShell, project, contextLogger));
-            defaultActionGroup.add(new InstallAction(codeTextField, groovyShell, coderSourceBox, baseCoders, dynamicCoders, project, contextLogger));
+            defaultActionGroup.add(new InstallAction(codeTextField, groovyShell, sourceComboBoxModel, baseCoders, dynamicCoders, project, contextLogger));
             defaultActionGroup.add(new UsingProjectLibraryAction(project));
             defaultActionGroup.add(new RunAction(codeTextField, groovyShell, project, contextLogger));
             defaultActionGroup.add(new EditClassPathAction(project));
@@ -443,7 +477,7 @@ public class CoderView extends JPanel implements DocumentListener {
                             editorGroup.add(new EnvAction(project, disposeRegistry));
                             editorGroup.add(new DemoAction(codeTextField, project));
                             editorGroup.add(new CompileAction(codeTextField, groovyShell, project, contextLogger));
-                            editorGroup.add(new InstallAction(codeTextField, groovyShell, coderSourceBox, baseCoders, dynamicCoders, project, contextLogger));
+                            editorGroup.add(new InstallAction(codeTextField, groovyShell, sourceComboBoxModel, baseCoders, dynamicCoders, project, contextLogger));
                             editorGroup.add(new UsingProjectLibraryAction(project));
                             editorGroup.add(new RunAction(codeTextField, groovyShell, project, contextLogger));
                             editorGroup.add(new EditClassPathAction(project));
