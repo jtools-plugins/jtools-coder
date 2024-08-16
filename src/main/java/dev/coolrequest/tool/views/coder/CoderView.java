@@ -391,9 +391,11 @@ public class CoderView extends JPanel implements DocumentListener {
                         Content coderContent = contentManager.findContent("Coder");
                         if (coderContent == null) {
                             ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
-                            contentManager.addContent(contentFactory.createContent(new CoderView(project, false, true), "Coder", true));
+                            coderContent = contentFactory.createContent(new CoderView(project, false, true), "Coder", true);
+                            contentManager.addContent(coderContent);
                         }
                         toolWindow.show();
+                        contentManager.setSelectedContent(coderContent,true,true);
                     }
                 });
 
