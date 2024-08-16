@@ -1,6 +1,7 @@
 package dev.coolrequest.tool.common;
 
 import com.intellij.openapi.util.Key;
+import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBTextArea;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 
@@ -35,4 +36,9 @@ public interface GlobalConstant {
      * 缓存自定义Coder环境参数
      */
     Key<MultiLanguageTextField> CODER_CUSTOM_ENV_KEY = Key.create("CoderCustomEnv");
+
+    /**
+     * 缓存在编辑器中打开coder的面板
+     */
+    Key<PsiFile> CODER_EDITOR_PANEL_KEY = Key.create("CoderEditorPanel");
 }
