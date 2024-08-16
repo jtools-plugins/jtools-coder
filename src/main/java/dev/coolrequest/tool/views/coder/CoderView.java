@@ -167,17 +167,9 @@ public class CoderView extends JPanel implements DocumentListener {
             }
         });
 
-        this.sourceComboBoxModel = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_SOURCE_BOX_MODEL_KEY, () -> {
-            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(source.toArray(new String[0]));
-            model.addAll(source);
-            return model;
-        });
+        this.sourceComboBoxModel = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_SOURCE_BOX_MODEL_KEY, () -> new DefaultComboBoxModel<String>(source.toArray(new String[0])));
 
-        DefaultComboBoxModel<String> targetComboBoxModel = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_TARGET_BOX_MODEL_KEY, () -> {
-            DefaultComboBoxModel<String> model = new DefaultComboBoxModel<>(source.toArray(new String[0]));
-            model.addAll(target);
-            return model;
-        });
+        DefaultComboBoxModel<String> targetComboBoxModel = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_TARGET_BOX_MODEL_KEY, () -> new DefaultComboBoxModel<String>(target.toArray(new String[0])));
 
         coderSourceBox.setModel(sourceComboBoxModel);
 
@@ -186,8 +178,8 @@ public class CoderView extends JPanel implements DocumentListener {
         //添加左侧下拉框数据变更监听器,当左侧下拉框数据发生变更,联动更新右侧下拉框内容
         coderSourceBox.addItemListener(e -> {
             String sourceValue = String.valueOf(sourceComboBoxModel.getSelectedItem());
-            targetComboBoxModel.removeAllElements();
-            dynamicCoders.stream().filter(item -> StringUtils.equals(item.kind().source, sourceValue)).map(item -> item.kind().target).forEach(targetComboBoxModel::addElement);
+            coderTargetBox.removeAllItems();
+            dynamicCoders.stream().filter(item -> StringUtils.equals(item.kind().source, sourceValue)).map(item -> item.kind().target).forEach(coderTargetBox::addItem);
 //            transform();
         });
         coderTargetBox.addItemListener(e -> transform());
@@ -419,6 +411,24 @@ public class CoderView extends JPanel implements DocumentListener {
          * 自定义Coder点击事件
          */
         private void customCoderMouseClicked(Supplier<GroovyShell> groovyShell) {
+
+            FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+            PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(codeTextField.getDocument());
+            //当编辑器中存在了,就屏蔽掉
+            if (psiFile != null) {
+                VirtualFile virtualFile = psiFile.getVirtualFile();
+                for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
+                    VirtualFile file = allEditor.getFile();
+                    //如果和之前不匹配,就关闭掉
+                    if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                        fileEditorManager.closeFile(file);
+                    } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
+                        fileEditorManager.openFile(file, true);
+                        return;
+                    }
+                }
+            }
+
             if (state.compareAndSet(false, true)) {
                 List<Runnable> disposes = new ArrayList<>();
                 this.coder = new SimpleFrame(createCustomCoderPanel(groovyShell, disposes), I18n.getString("coder.custom.title", project), new Dimension(1000, 600));
