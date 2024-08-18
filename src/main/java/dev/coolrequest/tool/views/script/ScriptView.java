@@ -3,6 +3,10 @@ package dev.coolrequest.tool.views.script;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
+import com.intellij.openapi.fileEditor.FileEditorManagerListener;
+import com.intellij.openapi.fileEditor.impl.EditorComposite;
+import com.intellij.openapi.fileEditor.impl.FileEditorManagerImpl;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.project.DumbService;
@@ -15,6 +19,7 @@ import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
+import com.intellij.util.messages.MessageBusConnection;
 import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
@@ -41,9 +46,13 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.net.URI;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 public class ScriptView extends JPanel {
 
@@ -63,7 +72,7 @@ public class ScriptView extends JPanel {
         this.contextLogger = LogContext.getLogger("Groovy", project);
         this.languageTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CODE_KEY, () -> {
             LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            return new MultiLanguageTextField(groovyFileType, project,"CoderGroovy.groovy");
+            return new MultiLanguageTextField(groovyFileType, project, "CoderGroovy.groovy");
         });
         this.classPathTextArea = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CLASSPATH_KEY, () -> {
             JBTextArea jbTextArea = new JBTextArea();
@@ -260,7 +269,7 @@ public class ScriptView extends JPanel {
                             if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
                                 fileEditorManager.closeFile(file);
                             } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
-                                fileEditorManager.openFile(file,true);
+                                fileEditorManager.openFile(file, true);
                                 hasExist = true;
                             }
                         }
@@ -268,8 +277,48 @@ public class ScriptView extends JPanel {
                             FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
                             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", new DefaultActionGroup(usingProjectLibrary, refreshDepend, run), true);
                             for (FileEditor fileEditor : fileEditors) {
-                                fileEditorManager.addTopComponent(fileEditor, ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()));
+                                fileEditorManager.addTopComponent(fileEditor, ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_FILE_EDITOR_TOP_COMPONENT, () -> ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent())));
                             }
+
+                            Set<String> cacheKeys = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_STATE_CACHE, HashSet::new);
+                            //未初始化文件监听器
+                            if (!cacheKeys.contains(GlobalConstant.CODER_GROOVY_FILE_EDITOR_LISTEN_INIT_KEY)) {
+                                //拿到消息总线
+                                MessageBusConnection connection = ProjectUtils.getOrCreate(project, GlobalConstant.MESSAGE_BUS_CONNECTION_KEY, () -> project.getMessageBus().connect());
+                                //增加订阅文件监听器
+                                connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, new FileEditorManagerListener() {
+                                    @Override
+                                    public void selectionChanged(@NotNull FileEditorManagerEvent event) {
+                                        //拿到文件
+                                        PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(languageTextField.getDocument());
+                                        //拿到文件编辑管理
+                                        FileEditorManagerImpl editorManager = (FileEditorManagerImpl) FileEditorManager.getInstance(project);
+                                        if (psiFile != null) {
+                                            VirtualFile psiFileVirtualFile = psiFile.getVirtualFile();
+                                            VirtualFile newFile = event.getNewFile();
+                                            //判断是否是同一个文件
+                                            if (psiFileVirtualFile.hashCode() == newFile.hashCode() && StringUtils.equals(psiFileVirtualFile.getPath(), newFile.getPath())) {
+                                                //拿到缓存的topComponent
+                                                JComponent topComponent = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_FILE_EDITOR_TOP_COMPONENT, () -> ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()));
+                                                //拿到文件的所有的文件编辑
+                                                for (FileEditor fileEditor : editorManager.getEditors(newFile)) {
+                                                    EditorComposite composite = editorManager.getComposite(newFile);
+                                                    if (composite != null) {
+                                                        Optional<Component> optionalComponent = Stream.of(composite.getComponent().getComponents()).filter(component -> component == topComponent).findFirst();
+                                                        //判断组件是否存在,如果不存在,则添加按钮
+                                                        if (optionalComponent.isEmpty()) {
+                                                            fileEditorManager.addTopComponent(fileEditor, topComponent);
+                                                        }
+                                                    }
+
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                                cacheKeys.add(GlobalConstant.CODER_GROOVY_FILE_EDITOR_LISTEN_INIT_KEY);
+                            }
+
                         }
                     }
                 }
