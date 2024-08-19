@@ -47,12 +47,10 @@ import java.io.File;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
 
 public class ScriptView extends JPanel {
 
@@ -301,10 +299,10 @@ public class ScriptView extends JPanel {
                                                 for (FileEditor fileEditor : editorManager.getEditors(newFile)) {
                                                     EditorComposite composite = editorManager.getComposite(newFile);
                                                     if (composite != null) {
-                                                        Optional<Component> optionalComponent = Stream.of(composite.getComponent().getComponents()).filter(component -> component == topComponent).findFirst();
-                                                        //判断组件是否存在,如果不存在,则添加按钮
-                                                        if (optionalComponent.isEmpty()) {
+                                                        JComponent cacheComponent = fileEditor.getUserData(GlobalConstant.CODER_CUSTOM_FILE_EDITOR_TOP_COMPONENT);
+                                                        if (cacheComponent == null) {
                                                             fileEditorManager.addTopComponent(fileEditor, topComponent);
+                                                            fileEditor.putUserData(GlobalConstant.CODER_CUSTOM_FILE_EDITOR_TOP_COMPONENT, topComponent);
                                                         }
                                                     }
 
