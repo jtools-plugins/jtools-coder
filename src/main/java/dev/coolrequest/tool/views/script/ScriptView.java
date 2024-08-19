@@ -274,12 +274,6 @@ public class ScriptView extends JPanel {
                             }
                         }
                         if (!hasExist) {
-                            FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
-                            ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", new DefaultActionGroup(usingProjectLibrary, refreshDepend, run), true);
-                            for (FileEditor fileEditor : fileEditors) {
-                                fileEditorManager.addTopComponent(fileEditor, ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_FILE_EDITOR_TOP_COMPONENT, () -> ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent())));
-                            }
-
                             Set<String> cacheKeys = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_STATE_CACHE, HashSet::new);
                             //未初始化文件监听器
                             if (!cacheKeys.contains(GlobalConstant.CODER_GROOVY_FILE_EDITOR_LISTEN_INIT_KEY)) {
@@ -299,7 +293,10 @@ public class ScriptView extends JPanel {
                                             //判断是否是同一个文件
                                             if (psiFileVirtualFile.hashCode() == newFile.hashCode() && StringUtils.equals(psiFileVirtualFile.getPath(), newFile.getPath())) {
                                                 //拿到缓存的topComponent
-                                                JComponent topComponent = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_FILE_EDITOR_TOP_COMPONENT, () -> ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent()));
+                                                JComponent topComponent = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_FILE_EDITOR_TOP_COMPONENT, () -> {
+                                                    ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("ScriptView", new DefaultActionGroup(usingProjectLibrary, refreshDepend, run), true);
+                                                    return ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, classPathButton(), templateCodeButton(), actionToolbar.getComponent());
+                                                });
                                                 //拿到文件的所有的文件编辑
                                                 for (FileEditor fileEditor : editorManager.getEditors(newFile)) {
                                                     EditorComposite composite = editorManager.getComposite(newFile);
@@ -318,7 +315,7 @@ public class ScriptView extends JPanel {
                                 });
                                 cacheKeys.add(GlobalConstant.CODER_GROOVY_FILE_EDITOR_LISTEN_INIT_KEY);
                             }
-
+                            fileEditorManager.openFile(psiFile.getVirtualFile(), true);
                         }
                     }
                 }
