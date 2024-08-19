@@ -9,12 +9,13 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
+import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.fileEditor.impl.EditorComposite;
 import com.intellij.openapi.fileEditor.impl.FileEditorManagerImpl;
 import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.fileTypes.PlainTextFileType;
-import com.intellij.openapi.fileTypes.PlainTextLanguage;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.roots.libraries.Library;
@@ -26,11 +27,11 @@ import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiFileFactory;
 import com.intellij.ui.JBSplitter;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
+import com.intellij.util.messages.MessageBusConnection;
 import dev.coolrequest.tool.common.*;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
@@ -62,6 +63,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class CoderView extends JPanel implements DocumentListener {
 
@@ -77,13 +79,11 @@ public class CoderView extends JPanel implements DocumentListener {
     private final Project project;
     private final Logger sysLogger;
     private final MultiLanguageTextField codeTextField;
-    private final boolean isEditor;
     private final boolean isConsole;
     private final DefaultComboBoxModel<String> sourceComboBoxModel;
 
-    public CoderView(Project project, boolean isEditor, boolean isConsole) {
+    public CoderView(Project project, boolean isConsole) {
         super(new BorderLayout());
-        this.isEditor = isEditor;
         this.isConsole = isConsole;
         this.project = project;
         this.contextLogger = LogContext.getLogger("Coder", project);
@@ -137,9 +137,7 @@ public class CoderView extends JPanel implements DocumentListener {
             String globalCustomCoderScript = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse(null);
             if (customCoderScript != null || globalCustomCoderScript != null) {
                 LogContext.show(project);
-                if (!isEditor) {
-                    contextLogger.info("load custom coders");
-                }
+                contextLogger.info("load custom coders");
                 if (customCoderScript != null) {
                     loadCustomCoders(coders, customCoderScript, createGroovyShell(project, () -> ProjectStateManager.load(project).getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CLASSPATH).orElse("")));
                 }
@@ -298,9 +296,9 @@ public class CoderView extends JPanel implements DocumentListener {
         for (Coder coder : this.dynamicCoders) {
             if (coder.kind().is(String.valueOf(sourceCoderValue), String.valueOf(targetValue))) {
                 //转换
-                try{
+                try {
                     rightTextField.setText(coder.transform(this.leftTextField.getText()));
-                }catch (Throwable e){
+                } catch (Throwable e) {
                     rightTextField.setText(e.getMessage());
                 }
             }
@@ -349,42 +347,6 @@ public class CoderView extends JPanel implements DocumentListener {
             };
             group.add(clearAction);
             group.add(addAction);
-            if (!isEditor) {
-                group.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
-                    @Override
-                    public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
-                        PsiFile psiFile = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_EDITOR_PANEL_KEY, () -> {
-                            PsiFile file = PsiFileFactory.getInstance(project).createFileFromText(PlainTextLanguage.INSTANCE, "");
-                            file.setName("Coder");
-                            return file;
-                        });
-                        FileEditorManagerImpl fileEditorManager = (FileEditorManagerImpl) FileEditorManager.getInstance(project);
-                        VirtualFile virtualFile = psiFile.getVirtualFile();
-                        boolean hasExist = false;
-                        for (FileEditor allEditor : fileEditorManager.getAllEditors()) {
-                            VirtualFile file = allEditor.getFile();
-                            if (virtualFile.hashCode() != file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
-                                fileEditorManager.closeFile(file);
-                            } else if (virtualFile.hashCode() == file.hashCode() && StringUtils.equals(virtualFile.getPath(), file.getPath())) {
-                                fileEditorManager.openFile(file, true);
-                                hasExist = true;
-                            }
-                        }
-                        if (!hasExist) {
-                            FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
-                            for (FileEditor fileEditor : fileEditors) {
-                                EditorComposite composite = fileEditorManager.getComposite(fileEditor);
-                                if (composite != null) {
-                                    JComponent component = composite.getComponent();
-                                    component.removeAll();
-                                    component.add(new CoderView(project, true, false));
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
             if (!isConsole) {
                 group.add(new AnAction(() -> "在控制台打开", Icons.CONSOLE) {
                     @Override
@@ -395,11 +357,11 @@ public class CoderView extends JPanel implements DocumentListener {
                         Content coderContent = contentManager.findContent("Coder");
                         if (coderContent == null) {
                             ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
-                            coderContent = contentFactory.createContent(new CoderView(project, false, true), "Coder", true);
+                            coderContent = contentFactory.createContent(new CoderView(project, true), "Coder", true);
                             contentManager.addContent(coderContent);
                         }
                         toolWindow.show();
-                        contentManager.setSelectedContent(coderContent,true,true);
+                        contentManager.setSelectedContent(coderContent, true, true);
                     }
                 });
 
@@ -488,23 +450,59 @@ public class CoderView extends JPanel implements DocumentListener {
                             }
                         }
                         if (!hasExist) {
-                            FileEditor[] fileEditors = fileEditorManager.openFile(psiFile.getVirtualFile(), true);
-                            DefaultActionGroup editorGroup = new DefaultActionGroup();
-                            editorGroup.add(new EnvAction(project, disposeRegistry));
-                            editorGroup.add(new DemoAction(codeTextField, project));
-                            editorGroup.add(new CompileAction(codeTextField, groovyShell, project, contextLogger));
-                            editorGroup.add(new InstallAction(codeTextField, groovyShell, sourceComboBoxModel, baseCoders, dynamicCoders, project, contextLogger));
-                            editorGroup.add(new UsingProjectLibraryAction(project));
-                            editorGroup.add(new RunAction(codeTextField, groovyShell, project, contextLogger));
-                            editorGroup.add(new EditClassPathAction(project));
-                            editorGroup.add(new RefreshClassPathAction(project));
-                            editorGroup.add(new ChangeScopeAction(codeTextField, project));
-                            ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("CustomCoderEditor@ToolBar", editorGroup, true);
-                            for (FileEditor fileEditor : fileEditors) {
-                                fileEditorManager.addTopComponent(fileEditor, ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, actionToolbar.getComponent()));
-                            }
-                        }
+                            Set<String> cacheKeys = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_STATE_CACHE, HashSet::new);
+                            //未初始化文件监听器
+                            if (!cacheKeys.contains(GlobalConstant.CODER_CUSTOM_FILE_EDITOR_LISTEN_INIT_KEY)) {
+                                //拿到消息总线
+                                MessageBusConnection connection = ProjectUtils.getOrCreate(project, GlobalConstant.MESSAGE_BUS_CONNECTION_KEY, () -> project.getMessageBus().connect());
+                                //增加订阅文件监听器
+                                connection.subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, new FileEditorManagerListener() {
+                                    @Override
+                                    public void selectionChanged(@NotNull FileEditorManagerEvent event) {
+                                        //拿到文件
+                                        PsiFile psiFile = PsiDocumentManager.getInstance(project).getPsiFile(codeTextField.getDocument());
+                                        //拿到文件编辑管理
+                                        FileEditorManagerImpl editorManager = (FileEditorManagerImpl) FileEditorManager.getInstance(project);
+                                        if (psiFile != null) {
+                                            VirtualFile psiFileVirtualFile = psiFile.getVirtualFile();
+                                            VirtualFile newFile = event.getNewFile();
+                                            //判断是否是同一个文件
+                                            if (psiFileVirtualFile.hashCode() == newFile.hashCode() && StringUtils.equals(psiFileVirtualFile.getPath(), newFile.getPath())) {
+                                                //拿到缓存的topComponent
+                                                JComponent topComponent = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_CUSTOM_FILE_EDITOR_TOP_COMPONENT, () -> {
+                                                    DefaultActionGroup editorGroup = new DefaultActionGroup();
+                                                    editorGroup.add(new EnvAction(project, disposeRegistry));
+                                                    editorGroup.add(new DemoAction(codeTextField, project));
+                                                    editorGroup.add(new CompileAction(codeTextField, groovyShell, project, contextLogger));
+                                                    editorGroup.add(new InstallAction(codeTextField, groovyShell, sourceComboBoxModel, baseCoders, dynamicCoders, project, contextLogger));
+                                                    editorGroup.add(new UsingProjectLibraryAction(project));
+                                                    editorGroup.add(new RunAction(codeTextField, groovyShell, project, contextLogger));
+                                                    editorGroup.add(new EditClassPathAction(project));
+                                                    editorGroup.add(new RefreshClassPathAction(project));
+                                                    editorGroup.add(new ChangeScopeAction(codeTextField, project));
+                                                    ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("CustomCoderEditor@ToolBar", editorGroup, true);
+                                                    return ComponentUtils.createFlowLayoutPanel(FlowLayout.RIGHT, actionToolbar.getComponent());
+                                                });
+                                                //拿到文件的所有的文件编辑
+                                                for (FileEditor fileEditor : editorManager.getEditors(newFile)) {
+                                                    EditorComposite composite = editorManager.getComposite(newFile);
+                                                    if (composite != null) {
+                                                        Optional<Component> optionalComponent = Stream.of(composite.getComponent().getComponents()).filter(component -> component == topComponent).findFirst();
+                                                        //判断组件是否存在,如果不存在,则添加按钮
+                                                        if (optionalComponent.isEmpty()) {
+                                                            fileEditorManager.addTopComponent(fileEditor, topComponent);
+                                                        }
+                                                    }
 
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                                cacheKeys.add(GlobalConstant.CODER_CUSTOM_FILE_EDITOR_LISTEN_INIT_KEY);
+                            }
+                            fileEditorManager.openFile(psiFile.getVirtualFile(), true);
+                        }
                         coder.dispose();
                     }
                 }

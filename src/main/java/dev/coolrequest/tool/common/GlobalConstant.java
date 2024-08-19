@@ -71,9 +71,15 @@ public interface GlobalConstant {
 
 
     /**
-     * 是否初始化CoderGroovyFileEditorListener监听器的key
+     * 初始化CoderGroovyFileEditorListener监听器的key
      */
     String CODER_GROOVY_FILE_EDITOR_LISTEN_INIT_KEY = "CoderGroovyFileEditorListenInitKey";
+
+
+    /**
+     * 初始化CoderCustomFileEditorListenInitKey监听器的key
+     */
+    String CODER_CUSTOM_FILE_EDITOR_LISTEN_INIT_KEY = "CoderCustomFileEditorListenInitKey";
 
 
     /**
@@ -85,5 +91,10 @@ public interface GlobalConstant {
      * Groovy 在编辑器中打开的top组件
      */
     Key<JComponent> CODER_GROOVY_FILE_EDITOR_TOP_COMPONENT = Key.create("CoderGroovyFileEditorTopComponent");
+
+    /**
+     * 自定义Coder 在编辑器中打开的top组件
+     */
+    Key<JComponent> CODER_CUSTOM_FILE_EDITOR_TOP_COMPONENT = Key.create("CoderCustomFileEditorTopComponent");
 
 }
