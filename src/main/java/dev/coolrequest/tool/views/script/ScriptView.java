@@ -11,9 +11,6 @@ import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.OrderRootType;
-import com.intellij.openapi.roots.libraries.Library;
-import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
@@ -47,6 +44,7 @@ import java.io.File;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -96,11 +94,9 @@ public class ScriptView extends JPanel {
             GroovyShell groovyShell = new GroovyShell(groovyClassLoader, compilerConfiguration);
             ProjectState projectState = ProjectStateManager.load(project);
             if (projectState.getBooleanCache(CacheConstant.SCRIPT_VIEW_CACHE_USING_PROJECT_LIBRARY)) {
-                for (Library library : LibraryTablesRegistrar.getInstance().getLibraryTable(project).getLibraries()) {
-                    for (VirtualFile file : library.getFiles(OrderRootType.CLASSES)) {
-                        URL url = new File(file.getPresentableUrl()).toURI().toURL();
-                        groovyClassLoader.addURL(url);
-                    }
+                List<File> allModuleLibraries = ProjectUtils.getAllModuleLibraries(project);
+                for (File file : allModuleLibraries) {
+                    groovyClassLoader.addURL(file.toURI().toURL());
                 }
             }
             String classPaths = classPathTextArea.getText();
