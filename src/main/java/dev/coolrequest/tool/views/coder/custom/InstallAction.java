@@ -1,10 +1,14 @@
 package dev.coolrequest.tool.views.coder.custom;
 
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
-import dev.coolrequest.tool.common.*;
+import dev.coolrequest.tool.common.CacheConstant;
+import dev.coolrequest.tool.common.I18n;
+import dev.coolrequest.tool.common.LogContext;
+import dev.coolrequest.tool.common.Logger;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.state.GlobalState;
 import dev.coolrequest.tool.state.ProjectState;
@@ -46,7 +50,7 @@ public class InstallAction extends AnAction {
                          List<Coder> baseCoders,
                          List<Coder> dynamicCoders,
                          Project project, Logger contextLogger) {
-        super(() -> I18n.getString("coder.custom.install", project), Icons.INSTALL);
+        super(() -> I18n.getString("coder.custom.install", project), AllIcons.Actions.Install);
         this.codeTextField = codeTextField;
         this.groovyShell = groovyShell;
         this.coderSourceBox = coderSourceBox;
