@@ -17,6 +17,12 @@ import java.awt.*;
 public class MainPanel extends JPanel implements CoolToolPanel {
     private Project project;
 
+
+    public MainPanel setProject(Project project) {
+        this.project = project;
+        return this;
+    }
+
     @Override
     public JPanel createPanel() {
         setLayout(new BorderLayout());

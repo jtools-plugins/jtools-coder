@@ -1,20 +1,16 @@
 package dev.coolrequest.tool.common;
 
 import com.intellij.openapi.util.IconLoader;
-import dev.coolrequest.tool.utils.ClassLoaderUtils;
 
 import javax.swing.*;
 
 public interface Icons {
 
-    Icon DEMO = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/demo.svg"));
-    Icon COMPILE = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/compile.svg"));
-    Icon LIBRARY = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/library.svg"));
-    Icon INSTALL = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/install.svg"));
-    Icon RUN = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/run.svg"));
-    Icon ENV = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/env.svg"));
-    Icon CLEAR = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/clear.svg"));
-    Icon REFRESH = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/refresh.svg"));
-    Icon OPEN = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/open.svg"));
-    Icon CONSOLE = IconLoader.findIcon(ClassLoaderUtils.getResource("icons/console.svg"));
+    Icon DEMO = IconLoader.findIcon("icons/demo.svg", Icons.class);
+    Icon LIBRARY = IconLoader.findIcon("icons/library.svg", Icons.class);
+    Icon ENV = IconLoader.findIcon("icons/env.svg", Icons.class);
+    Icon CLEAR = IconLoader.findIcon("icons/clear.svg", Icons.class);
+    Icon REFRESH = IconLoader.findIcon("icons/refresh.svg", Icons.class);
+    Icon OPEN = IconLoader.findIcon("icons/open.svg", Icons.class);
+    Icon CONSOLE = IconLoader.findIcon("icons/console.svg", Icons.class);
 }

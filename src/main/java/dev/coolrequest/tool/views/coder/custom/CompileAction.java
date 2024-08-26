@@ -1,10 +1,10 @@
 package dev.coolrequest.tool.views.coder.custom;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import dev.coolrequest.tool.common.I18n;
-import dev.coolrequest.tool.common.Icons;
 import dev.coolrequest.tool.common.LogContext;
 import dev.coolrequest.tool.common.Logger;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
@@ -22,7 +22,7 @@ public class CompileAction extends AnAction {
     private final Project project;
 
     public CompileAction(MultiLanguageTextField codeTextField, Supplier<GroovyShell> groovyShell, Project project, Logger contextLogger) {
-        super(() -> I18n.getString("coder.custom.compile", project), Icons.COMPILE);
+        super(() -> I18n.getString("coder.custom.compile", project), AllIcons.Actions.Compile);
         this.codeTextField = codeTextField;
         this.groovyShell = groovyShell;
         this.logger = contextLogger;

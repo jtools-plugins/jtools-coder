@@ -96,11 +96,6 @@ public class ClassLoaderUtils {
         }
     }
 
-    public static void main(String[] args) {
-        URL resource = getResource("icons/demo_action.svg");
-        System.out.println(resource);
-    }
-
     private static void resolveJar(ClassLoader classLoader, String packageDir, Predicate<Class<?>> clazzPredicate, JarURLConnection connection, List<Class<?>> classes, String fileSuffixName) throws Throwable {
         JarFile jarFile = connection.getJarFile();
         Enumeration<JarEntry> entries = jarFile.entries();
@@ -123,10 +118,6 @@ public class ClassLoaderUtils {
 
     public static URL getResource(String name) {
         return CLASS_LOADER.getResource(name);
-    }
-
-    public static InputStream getResourceAsStream(String name) {
-        return CLASS_LOADER.getResourceAsStream(name);
     }
 
     public static byte[] getResourceToBytes(String name) {
