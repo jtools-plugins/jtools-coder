@@ -1,5 +1,6 @@
 package dev.coolrequest.tool.views.script;
 
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -234,7 +235,7 @@ public class ScriptView extends JPanel {
                     });
                 }
             };
-            AnAction run = new AnAction(() -> "运行", Icons.RUN) {
+            AnAction run = new AnAction(() -> "运行", AllIcons.Actions.Execute) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     //显示日志面板
