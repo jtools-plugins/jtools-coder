@@ -3,20 +3,37 @@ package dev.coolrequest.tool;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.IconLoader;
 import com.lhstack.tools.plugins.IPlugin;
+import dev.coolrequest.tool.common.LogContext;
 
 import javax.swing.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 public class PluginImpl implements IPlugin {
 
     private final Map<String, JComponent> components = new HashMap<String, JComponent>();
+
+    private final Map<String, Project> projectMap = new HashMap<>();
 
     @Override
     public JComponent createPanel(Project project) {
         return components.computeIfAbsent(project.getLocationHash(), key -> {
             return new MainPanel().setProject(project).createPanel();
         });
+    }
+
+    @Override
+    public void unInstall() {
+        ResourceBundle.clearCache();
+        for (Project project : projectMap.values()) {
+            LogContext.getInstance(project).release();
+        }
+    }
+
+    @Override
+    public void openProject(Project project) {
+        projectMap.put(project.getLocationHash(), project);
     }
 
     @Override

@@ -128,6 +128,7 @@ public class ScriptView extends JPanel {
                 thread.start();
                 futureTask.get(10, TimeUnit.SECONDS);
             } catch (Throwable e) {
+                groovyShell.getClassLoader().close();
                 futureTask.cancel(true);
                 contextLogger.error("脚本执行失败,错误信息: " + e);
             }
