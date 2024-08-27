@@ -34,8 +34,15 @@ public class CompileAction extends AnAction {
         if (StringUtils.isNotBlank(this.codeTextField.getText())) {
             LogContext.show(project);
             try {
-                groovyShell.get().parse(this.codeTextField.getText());
-                logger.info("编译代码通过");
+                GroovyShell shell = groovyShell.get();
+                try {
+                    shell.parse(this.codeTextField.getText());
+                    logger.info("编译代码通过");
+                } catch (Throwable e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    shell.getClassLoader().close();
+                }
             } catch (Throwable e) {
                 logger.info(String.format("编译失败,error: %s", e.getMessage()));
             }
