@@ -36,6 +36,10 @@ public class LogContext {
         this.project = project;
     }
 
+    public void release(){
+        toolWindow.remove();
+    }
+
     public Logger getLogger(Class<?> clazz) {
         return new TextAreaLogger(clazz, consoleView);
     }

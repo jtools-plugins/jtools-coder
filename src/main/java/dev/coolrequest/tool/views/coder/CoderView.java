@@ -192,22 +192,33 @@ public class CoderView extends JPanel implements DocumentListener {
      */
     private void loadCustomCoders(List<Coder> coders, String customCoderScript, Supplier<GroovyShell> groovyShell) {
         CoderRegistry coderRegistry = new CoderRegistry(coders);
-        Binding binding = new Binding();
-        binding.setVariable("coder", coderRegistry);
-        binding.setVariable("sysLog", sysLogger);
-        binding.setVariable("log", contextLogger);
-        binding.setVariable("projectEnv", ProjectStateManager.load(this.project).getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
-        binding.setVariable("globalEnv", GlobalState.getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
-        Script script = groovyShell.get().parse(customCoderScript);
-        script.setBinding(binding);
-        FutureTask<Object> futureTask = new FutureTask<>(script::run);
         try {
-            Thread thread = new Thread(futureTask);
-            thread.start();
-            futureTask.get(10, TimeUnit.SECONDS);
+            GroovyShell shell = groovyShell.get();
+            try {
+                Script script = shell.parse(customCoderScript);
+                Binding binding = new Binding();
+                binding.setVariable("coder", coderRegistry);
+                binding.setVariable("sysLog", sysLogger);
+                binding.setVariable("log", contextLogger);
+                binding.setVariable("projectEnv", ProjectStateManager.load(this.project).getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
+                binding.setVariable("globalEnv", GlobalState.getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
+                script.setBinding(binding);
+                FutureTask<Object> futureTask = new FutureTask<>(script::run);
+                try {
+                    Thread thread = new Thread(futureTask);
+                    thread.start();
+                    futureTask.get(10, TimeUnit.SECONDS);
+                } catch (Throwable e) {
+                    futureTask.cancel(true);
+                    contextLogger.error("安装自定义coder失败,错误信息: " + e.getMessage());
+                }
+            } catch (Throwable e) {
+                contextLogger.error("安装自定义coder失败," + e.getMessage());
+            } finally {
+                shell.getClassLoader().close();
+            }
         } catch (Throwable e) {
-            futureTask.cancel(true);
-            contextLogger.error("安装自定义coder失败,错误信息: " + e.getMessage());
+            contextLogger.error("安装自定义coder失败," + e.getMessage());
         }
         if (CollectionUtils.isNotEmpty(coderRegistry.getRegistryCoders())) {
             coders.clear();
@@ -251,7 +262,7 @@ public class CoderView extends JPanel implements DocumentListener {
                 try {
                     List<File> allModuleLibraries = ProjectUtils.getAllModuleLibraries(project);
                     for (File allModuleLibrary : allModuleLibraries) {
-                        groovyShell.getClassLoader().addURL(allModuleLibrary.toURI().toURL());
+                        groovyShell.getClassLoader().addClasspath(allModuleLibrary.getAbsolutePath());
                     }
                 } catch (Throwable e) {
                     contextLogger.error("create groovyShell 失败,错误信息: " + e.getMessage());
