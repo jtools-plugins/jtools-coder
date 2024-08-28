@@ -10,7 +10,6 @@ import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
 import dev.coolrequest.tool.utils.ProjectUtils;
 
-import java.awt.event.InputEvent;
 import java.util.Collections;
 
 public class LogContext {
@@ -36,8 +35,10 @@ public class LogContext {
         this.project = project;
     }
 
-    public void release(){
-        toolWindow.remove();
+    public static void dispose(Project project) {
+        LogContext instance = getInstance(project);
+        instance.toolWindow.remove();
+        instance.consoleView.dispose();
     }
 
     public Logger getLogger(Class<?> clazz) {
@@ -59,7 +60,7 @@ public class LogContext {
 
     private void showWindow() {
         Content content = toolWindow.getContentManager().findContent("日志");
-        toolWindow.getContentManager().setSelectedContent(content,true,true);
+        toolWindow.getContentManager().setSelectedContent(content, true, true);
         toolWindow.show();
     }
 

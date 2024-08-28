@@ -12,7 +12,7 @@ import java.util.ResourceBundle;
 
 public class PluginImpl implements IPlugin {
 
-    private final Map<String, JComponent> components = new HashMap<String, JComponent>();
+    private final Map<String, MainPanel> components = new HashMap<>();
 
     private final Map<String, Project> projectMap = new HashMap<>();
 
@@ -38,7 +38,8 @@ public class PluginImpl implements IPlugin {
 
     @Override
     public void closeProject(String projectHash) {
-        components.remove(projectHash);
+        MainPanel mainPanel = components.remove(projectHash);
+        mainPanel.dispose();
     }
 
     @Override
@@ -63,6 +64,6 @@ public class PluginImpl implements IPlugin {
 
     @Override
     public String pluginVersion() {
-        return "1.0.8";
+        return "v1.0.8";
     }
 }
