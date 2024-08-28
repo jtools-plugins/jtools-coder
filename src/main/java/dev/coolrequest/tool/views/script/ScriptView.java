@@ -1,6 +1,7 @@
 package dev.coolrequest.tool.views.script;
 
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -51,7 +52,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ScriptView extends JPanel {
+public class ScriptView extends JPanel implements Disposable {
 
     private final Logger sysLog;
     private final Logger contextLogger;
@@ -137,6 +138,11 @@ public class ScriptView extends JPanel {
         } catch (Throwable e) {
             sysLog.error("groovy脚本执行错误: " + e.getMessage() + "\n");
         }
+    }
+
+    @Override
+    public void dispose() {
+
     }
 
 

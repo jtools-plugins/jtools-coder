@@ -4,6 +4,7 @@ import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
@@ -61,7 +62,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class CoderView extends JPanel implements DocumentListener {
+public class CoderView extends JPanel implements DocumentListener, Disposable {
 
     private final JComboBox<String> coderSourceBox = new JComboBox<>();
     private final JComboBox<String> coderTargetBox = new JComboBox<>();
@@ -316,6 +317,11 @@ public class CoderView extends JPanel implements DocumentListener {
         transform();
     }
 
+    @Override
+    public void dispose() {
+
+    }
+
     private class RightTarget extends JPanel {
         private final Project project;
 
@@ -340,7 +346,7 @@ public class CoderView extends JPanel implements DocumentListener {
                     contextLogger.warn("清空编辑器中的内容完毕");
                 }
             };
-            AnAction addAction = new AnAction(() -> I18n.getString("coder.custom.title", project), com.intellij.util.Icons.ADD_ICON) {
+            AnAction addAction = new AnAction(() -> I18n.getString("coder.custom.title", project), Icons.ADD) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                     try {

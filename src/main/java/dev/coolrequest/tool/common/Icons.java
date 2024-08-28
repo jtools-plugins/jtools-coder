@@ -13,4 +13,5 @@ public interface Icons {
     Icon REFRESH = IconLoader.findIcon("icons/refresh.svg", Icons.class);
     Icon OPEN = IconLoader.findIcon("icons/open.svg", Icons.class);
     Icon CONSOLE = IconLoader.findIcon("icons/console.svg", Icons.class);
+    Icon ADD = IconLoader.findIcon("icons/add.svg", Icons.class);
 }
