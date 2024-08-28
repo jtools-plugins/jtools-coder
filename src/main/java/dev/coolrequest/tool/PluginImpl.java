@@ -33,6 +33,11 @@ public class PluginImpl implements IPlugin {
     }
 
     @Override
+    public void unInstall() {
+        projectMap.values().forEach(project -> closeProject(project.getLocationHash()));
+    }
+
+    @Override
     public Icon pluginIcon() {
         return IconLoader.findIcon("logo.svg", PluginImpl.class);
     }
