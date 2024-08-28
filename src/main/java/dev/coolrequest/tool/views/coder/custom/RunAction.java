@@ -46,27 +46,33 @@ public class RunAction extends AnAction {
             if (StringUtils.isNotBlank(code)) {
                 LogContext.show(project);
                 GroovyShell shell = groovyShell.get();
-                Script script = shell.parse(code);
-                Binding binding = new Binding();
-                CoderRegistry coderRegistry = new CoderRegistry(new ArrayList<>());
-                binding.setVariable("coder", coderRegistry);
-                binding.setVariable("log", contextLogger);
-                binding.setVariable("sysLog", sysLog);
-                //项目环境变量
-                binding.setVariable("projectEnv", ProjectStateManager.load(project).getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
-                //全局环境变量
-                binding.setVariable("globalEnv", GlobalState.getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
-                script.setBinding(binding);
-                FutureTask<Object> futureTask = new FutureTask<>(script::run);
                 try {
-                    contextLogger.info("开始尝试运行自定义coder脚本");
-                    Thread thread = new Thread(futureTask);
-                    thread.start();
-                    futureTask.get(10, TimeUnit.SECONDS);
-                    contextLogger.info("尝试运行自定义coder脚本成功");
+                    Script script = shell.parse(code);
+                    Binding binding = new Binding();
+                    CoderRegistry coderRegistry = new CoderRegistry(new ArrayList<>());
+                    binding.setVariable("coder", coderRegistry);
+                    binding.setVariable("log", contextLogger);
+                    binding.setVariable("sysLog", sysLog);
+                    //项目环境变量
+                    binding.setVariable("projectEnv", ProjectStateManager.load(project).getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
+                    //全局环境变量
+                    binding.setVariable("globalEnv", GlobalState.getJsonObjCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_ENVIRONMENT));
+                    script.setBinding(binding);
+                    FutureTask<Object> futureTask = new FutureTask<>(script::run);
+                    try {
+                        contextLogger.info("开始尝试运行自定义coder脚本");
+                        Thread thread = new Thread(futureTask);
+                        thread.start();
+                        futureTask.get(10, TimeUnit.SECONDS);
+                        contextLogger.info("尝试运行自定义coder脚本成功");
+                    } catch (Throwable err) {
+                        futureTask.cancel(true);
+                        contextLogger.error("尝试运行自定义coder失败,错误信息: " + err);
+                    }
                 } catch (Throwable err) {
-                    futureTask.cancel(true);
-                    contextLogger.error("尝试运行自定义coder失败,错误信息: " + err);
+                    throw new RuntimeException(err);
+                } finally {
+                    shell.getClassLoader().close();
                 }
             }
         } catch (Throwable err) {
