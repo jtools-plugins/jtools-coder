@@ -22,7 +22,7 @@ public class PluginImpl implements IPlugin {
     }
 
     @Override
-    public void openProject(Project project) {
+    public void openProject(Project project, Runnable openThisPage) {
         projectMap.put(project.getLocationHash(), project);
     }
 

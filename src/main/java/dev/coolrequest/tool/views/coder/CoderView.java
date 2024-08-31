@@ -4,6 +4,9 @@ import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
@@ -415,13 +418,23 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                 coder.addWindowListener(new WindowAdapter() {
                     @Override
                     public void windowClosing(WindowEvent e) {
-                        disposes.forEach(Runnable::run);
+                        try {
+                            disposes.forEach(Runnable::run);
+                        } catch (Throwable err) {
+                            String stackMsg = Arrays.stream(err.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\r\n"));
+                            Notifications.Bus.notify(new Notification("", "关闭自定义coder窗口", err + "\r\n" + stackMsg, NotificationType.ERROR), project);
+                        }
                         state.set(false);
                     }
 
                     @Override
                     public void windowClosed(WindowEvent e) {
-                        disposes.forEach(Runnable::run);
+                        try {
+                            disposes.forEach(Runnable::run);
+                        } catch (Throwable err) {
+                            String stackMsg = Arrays.stream(err.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\r\n"));
+                            Notifications.Bus.notify(new Notification("", "关闭自定义coder窗口", err + "\r\n" + stackMsg, NotificationType.ERROR), project);
+                        }
                         state.set(false);
                     }
                 });
