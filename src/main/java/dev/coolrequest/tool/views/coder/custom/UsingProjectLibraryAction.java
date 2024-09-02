@@ -20,8 +20,14 @@ public class UsingProjectLibraryAction extends ToggleAction {
     private final Project project;
 
     public UsingProjectLibraryAction(Project project) {
-        super(() -> I18n.getString("coder.custom.usingProjectLibrary", project), Icons.LIBRARY);
+        super(() -> I18n.getString("coder.custom.usingProjectLibrary", project), Icons.LIBRARY.get());
         this.project = project;
+    }
+
+    @Override
+    public void update(@NotNull AnActionEvent e) {
+        super.update(e);
+        e.getPresentation().setIcon(Icons.LIBRARY.get());
     }
 
     @Override
@@ -35,8 +41,8 @@ public class UsingProjectLibraryAction extends ToggleAction {
     @Override
     public void setSelected(@NotNull AnActionEvent e, boolean state) {
         if (ProjectStateManager.load(project).getScope() == Scope.GLOBAL) {
-            Messages.showWarningDialog("全局作用域下面不可使用项目依赖","警告");
-            return ;
+            Messages.showWarningDialog("全局作用域下面不可使用项目依赖", "警告");
+            return;
         }
         ProjectState projectState = ProjectStateManager.load(project);
         if (projectState.isCustomCoderUsingProjectLibrary() != state) {

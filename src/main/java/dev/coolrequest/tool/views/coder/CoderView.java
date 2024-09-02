@@ -4,10 +4,6 @@ import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
-import com.intellij.notification.Notification;
-import com.intellij.notification.NotificationType;
-import com.intellij.notification.Notifications;
-import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
@@ -34,6 +30,7 @@ import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
 import com.intellij.util.messages.MessageBusConnection;
 import dev.coolrequest.tool.common.*;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.GlobalState;
@@ -65,7 +62,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class CoderView extends JPanel implements DocumentListener, Disposable {
+public class CoderView extends JPanel implements DocumentListener {
 
     private final JComboBox<String> coderSourceBox = new JComboBox<>();
     private final JComboBox<String> coderTargetBox = new JComboBox<>();
@@ -320,11 +317,6 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
         transform();
     }
 
-    @Override
-    public void dispose() {
-
-    }
-
     private class RightTarget extends JPanel {
         private final Project project;
 
@@ -335,7 +327,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             super(new BorderLayout());
             this.project = project;
             DefaultActionGroup group = new DefaultActionGroup();
-            AnAction clearAction = new AnAction(() -> I18n.getString("coder.editor.clear", project), Icons.CLEAR) {
+            AnAction clearAction = new DynamicIconAction(() -> I18n.getString("coder.editor.clear", project), Icons.CLEAR) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                     if (StringUtils.isBlank(leftTextField.getText()) && StringUtils.isBlank(rightTextField.getText())) {
@@ -349,7 +341,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                     contextLogger.warn("清空编辑器中的内容完毕");
                 }
             };
-            AnAction addAction = new AnAction(() -> I18n.getString("coder.custom.title", project), Icons.ADD) {
+            AnAction addAction = new DynamicIconAction(() -> I18n.getString("coder.custom.title", project), Icons.ADD) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                     try {
@@ -362,7 +354,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             group.add(clearAction);
             group.add(addAction);
             if (!isConsole) {
-                group.add(new AnAction(() -> "在控制台打开", Icons.CONSOLE) {
+                group.add(new DynamicIconAction(() -> "在控制台打开", Icons.CONSOLE) {
                     @Override
                     public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                         ToolWindowManager toolWindowManager = ToolWindowManager.getInstance(project);
@@ -418,23 +410,13 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                 coder.addWindowListener(new WindowAdapter() {
                     @Override
                     public void windowClosing(WindowEvent e) {
-                        try {
-                            disposes.forEach(Runnable::run);
-                        } catch (Throwable err) {
-                            String stackMsg = Arrays.stream(err.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\r\n"));
-                            Notifications.Bus.notify(new Notification("", "关闭自定义coder窗口", err + "\r\n" + stackMsg, NotificationType.ERROR), project);
-                        }
+                        disposes.forEach(Runnable::run);
                         state.set(false);
                     }
 
                     @Override
                     public void windowClosed(WindowEvent e) {
-                        try {
-                            disposes.forEach(Runnable::run);
-                        } catch (Throwable err) {
-                            String stackMsg = Arrays.stream(err.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\r\n"));
-                            Notifications.Bus.notify(new Notification("", "关闭自定义coder窗口", err + "\r\n" + stackMsg, NotificationType.ERROR), project);
-                        }
+                        disposes.forEach(Runnable::run);
                         state.set(false);
                     }
                 });
@@ -455,7 +437,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             defaultActionGroup.add(new EditClassPathAction(project));
             defaultActionGroup.add(new RefreshClassPathAction(project));
             defaultActionGroup.add(new ChangeScopeAction(codeTextField, project));
-            defaultActionGroup.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
+            defaultActionGroup.add(new DynamicIconAction(() -> "在编辑器中打开", Icons.OPEN) {
 
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {

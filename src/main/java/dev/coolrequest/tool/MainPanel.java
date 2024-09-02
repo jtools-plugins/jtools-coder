@@ -1,6 +1,5 @@
 package dev.coolrequest.tool;
 
-import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
@@ -14,13 +13,9 @@ import dev.coolrequest.tool.views.script.ScriptView;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 
-public class MainPanel extends JPanel implements CoolToolPanel, Disposable {
+public class MainPanel extends JPanel implements CoolToolPanel {
     private Project project;
-
-    private final List<Disposable> disposables = new ArrayList<>();
 
 
     public MainPanel setProject(Project project) {
@@ -35,18 +30,14 @@ public class MainPanel extends JPanel implements CoolToolPanel, Disposable {
             //初始化
             LogContext.getInstance(project);
             JBTabs jbTabs = new JBTabsImpl(project);
-            CoderView coderView = new CoderView(project, false);
-
-            TabInfo encoderTabInfo = new TabInfo(coderView);
+            TabInfo encoderTabInfo = new TabInfo(new CoderView(project, false));
             encoderTabInfo.setText(I18n.getString("coder.title", project));
             jbTabs.addTab(encoderTabInfo);
-            ScriptView scriptView = new ScriptView(project);
-            TabInfo decoderTabInfo = new TabInfo(scriptView);
+
+            TabInfo decoderTabInfo = new TabInfo(new ScriptView(project));
             decoderTabInfo.setText(I18n.getString("script.title", project));
             jbTabs.addTab(decoderTabInfo);
             add(jbTabs.getComponent(), BorderLayout.CENTER);
-            disposables.add(coderView);
-            disposables.add(scriptView);
         } catch (Throwable e) {
             JDialog jd = new JDialog();
             jd.setTitle("启动插件失败提示");
@@ -74,11 +65,5 @@ public class MainPanel extends JPanel implements CoolToolPanel, Disposable {
     @Override
     public void closeTool() {
 
-    }
-
-    @Override
-    public void dispose() {
-        LogContext.dispose(project);
-        disposables.forEach(Disposable::dispose);
     }
 }
