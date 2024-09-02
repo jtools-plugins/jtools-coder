@@ -1,7 +1,6 @@
 package dev.coolrequest.tool.views.script;
 
 import com.intellij.icons.AllIcons;
-import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -20,6 +19,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.messages.MessageBusConnection;
 import dev.coolrequest.tool.common.*;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.ProjectState;
@@ -52,7 +52,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ScriptView extends JPanel implements Disposable {
+public class ScriptView extends JPanel {
 
     private final Logger sysLog;
     private final Logger contextLogger;
@@ -140,11 +140,6 @@ public class ScriptView extends JPanel implements Disposable {
         }
     }
 
-    @Override
-    public void dispose() {
-
-    }
-
 
     private class CodePanel extends JPanel {
 
@@ -218,7 +213,13 @@ public class ScriptView extends JPanel implements Disposable {
             ProjectStateManager.load(project).getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CODE).ifPresent(languageTextField::setText);
             DefaultActionGroup defaultActionGroup = new DefaultActionGroup();
             ProjectState projectState = ProjectStateManager.load(project);
-            ToggleAction usingProjectLibrary = new ToggleAction(() -> I18n.getString("script.usingProjectLibrary", project), Icons.LIBRARY) {
+            ToggleAction usingProjectLibrary = new ToggleAction(() -> I18n.getString("script.usingProjectLibrary", project), Icons.LIBRARY.get()) {
+
+                @Override
+                public void update(@NotNull AnActionEvent e) {
+                    super.update(e);
+                    e.getPresentation().setIcon(Icons.LIBRARY.get());
+                }
 
                 @Override
                 public boolean isSelected(@NotNull AnActionEvent anActionEvent) {
@@ -234,7 +235,7 @@ public class ScriptView extends JPanel implements Disposable {
                     }
                 }
             };
-            AnAction refreshDepend = new AnAction(() -> "刷新依赖", Icons.REFRESH) {
+            AnAction refreshDepend = new DynamicIconAction(() -> "刷新依赖", Icons.REFRESH) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     DumbService.getInstance(project).runWhenSmart(() -> {
@@ -258,7 +259,7 @@ public class ScriptView extends JPanel implements Disposable {
             defaultActionGroup.add(usingProjectLibrary);
             defaultActionGroup.add(refreshDepend);
             defaultActionGroup.add(run);
-            defaultActionGroup.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
+            defaultActionGroup.add(new DynamicIconAction(() -> "在编辑器中打开", Icons.OPEN) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);

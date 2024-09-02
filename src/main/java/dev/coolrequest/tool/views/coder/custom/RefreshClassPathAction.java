@@ -1,10 +1,10 @@
 package dev.coolrequest.tool.views.coder.custom;
 
-import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import dev.coolrequest.tool.common.CacheConstant;
 import dev.coolrequest.tool.common.Icons;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.state.GlobalState;
 import dev.coolrequest.tool.state.ProjectState;
 import dev.coolrequest.tool.state.ProjectStateManager;
@@ -13,7 +13,7 @@ import dev.coolrequest.tool.utils.LibraryUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
-public class RefreshClassPathAction extends AnAction {
+public class RefreshClassPathAction extends DynamicIconAction {
 
     private final Project project;
 
