@@ -1,6 +1,7 @@
 package dev.coolrequest.tool.views.script;
 
 import com.intellij.icons.AllIcons;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -12,6 +13,7 @@ import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
@@ -52,7 +54,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ScriptView extends JPanel {
+public class ScriptView extends JPanel implements Disposable {
 
     private final Logger sysLog;
     private final Logger contextLogger;
@@ -70,7 +72,9 @@ public class ScriptView extends JPanel {
         this.contextLogger = LogContext.getLogger("Groovy", project);
         this.languageTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CODE_KEY, () -> {
             LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            return new MultiLanguageTextField(groovyFileType, project, "CoderGroovy.groovy");
+            MultiLanguageTextField multiLanguageTextField = new MultiLanguageTextField(groovyFileType, project, "CoderGroovy.groovy");
+            Disposer.register(ScriptView.this, multiLanguageTextField);
+            return multiLanguageTextField;
         });
         this.classPathTextArea = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CLASSPATH_KEY, () -> {
             JBTextArea jbTextArea = new JBTextArea();
@@ -138,6 +142,11 @@ public class ScriptView extends JPanel {
         } catch (Throwable e) {
             sysLog.error("groovy脚本执行错误: " + e.getMessage() + "\n");
         }
+    }
+
+    @Override
+    public void dispose() {
+
     }
 
 
