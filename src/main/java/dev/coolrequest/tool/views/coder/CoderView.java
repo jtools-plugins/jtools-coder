@@ -4,6 +4,7 @@ import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.event.DocumentListener;
@@ -19,6 +20,7 @@ import com.intellij.openapi.fileTypes.PlainTextFileType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
@@ -62,7 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class CoderView extends JPanel implements DocumentListener {
+public class CoderView extends JPanel implements DocumentListener, Disposable {
 
     private final JComboBox<String> coderSourceBox = new JComboBox<>();
     private final JComboBox<String> coderTargetBox = new JComboBox<>();
@@ -99,8 +101,10 @@ public class CoderView extends JPanel implements DocumentListener {
                 .collect(Collectors.toList());
 
         this.leftTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
+        Disposer.register(this,leftTextField);
         this.leftTextField.getDocument().addDocumentListener(this);
         this.rightTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
+        Disposer.register(this,rightTextField);
         this.rightTextField.setEnabled(false);
 
         this.codeTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_CUSTOM_CODE_KEY, () -> {
@@ -115,6 +119,7 @@ public class CoderView extends JPanel implements DocumentListener {
                 String script = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
                 codeTextField.setText(script);
             }
+            Disposer.register(CoderView.this,codeTextField);
             return codeTextField;
         });
 
@@ -317,6 +322,11 @@ public class CoderView extends JPanel implements DocumentListener {
         transform();
     }
 
+    @Override
+    public void dispose() {
+
+    }
+
     private class RightTarget extends JPanel {
         private final Project project;
 
@@ -363,7 +373,9 @@ public class CoderView extends JPanel implements DocumentListener {
                         Content coderContent = contentManager.findContent("Coder");
                         if (coderContent == null) {
                             ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
-                            coderContent = contentFactory.createContent(new CoderView(project, true), "Coder", true);
+                            CoderView coderView = new CoderView(project, true);
+                            Disposer.register(CoderView.this,coderView);
+                            coderContent = contentFactory.createContent(coderView, "Coder", true);
                             contentManager.addContent(coderContent);
                         }
                         toolWindow.show();
@@ -374,6 +386,7 @@ public class CoderView extends JPanel implements DocumentListener {
             }
 
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("Coder@Toolbar", group, true);
+            actionToolbar.setTargetComponent(this);
             JPanel panel = ComponentUtils.createFlowLayoutPanel(FlowLayout.LEFT, coderTargetBox, actionToolbar.getComponent());
             //添加下拉框,左对齐
             add(panel, BorderLayout.NORTH);

@@ -1,6 +1,8 @@
 package dev.coolrequest.tool;
 
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.ui.tabs.JBTabs;
@@ -14,7 +16,7 @@ import dev.coolrequest.tool.views.script.ScriptView;
 import javax.swing.*;
 import java.awt.*;
 
-public class MainPanel extends JPanel implements CoolToolPanel {
+public class MainPanel extends JPanel implements CoolToolPanel, Disposable {
     private Project project;
 
 
@@ -30,11 +32,14 @@ public class MainPanel extends JPanel implements CoolToolPanel {
             //初始化
             LogContext.getInstance(project);
             JBTabs jbTabs = new JBTabsImpl(project);
-            TabInfo encoderTabInfo = new TabInfo(new CoderView(project, false));
+            CoderView coderView = new CoderView(project, false);
+            Disposer.register(this,coderView);
+            TabInfo encoderTabInfo = new TabInfo(coderView);
             encoderTabInfo.setText(I18n.getString("coder.title", project));
             jbTabs.addTab(encoderTabInfo);
-
-            TabInfo decoderTabInfo = new TabInfo(new ScriptView(project));
+            ScriptView scriptView = new ScriptView(project);
+            Disposer.register(this,scriptView);
+            TabInfo decoderTabInfo = new TabInfo(scriptView);
             decoderTabInfo.setText(I18n.getString("script.title", project));
             jbTabs.addTab(decoderTabInfo);
             add(jbTabs.getComponent(), BorderLayout.CENTER);
@@ -64,6 +69,11 @@ public class MainPanel extends JPanel implements CoolToolPanel {
 
     @Override
     public void closeTool() {
+
+    }
+
+    @Override
+    public void dispose() {
 
     }
 }

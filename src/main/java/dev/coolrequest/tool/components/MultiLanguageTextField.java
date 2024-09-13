@@ -2,6 +2,7 @@ package dev.coolrequest.tool.components;
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
 import com.intellij.ide.highlighter.HighlighterFactory;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.editor.EditorSettings;
@@ -16,7 +17,7 @@ import dev.coolrequest.tool.common.LogContext;
 import dev.coolrequest.tool.common.Logger;
 import org.jetbrains.annotations.NotNull;
 
-public class MultiLanguageTextField extends LanguageTextField {
+public class MultiLanguageTextField extends LanguageTextField implements Disposable {
 
     private final SimpleDocumentCreator documentCreator;
     private final Logger logger;
@@ -62,12 +63,12 @@ public class MultiLanguageTextField extends LanguageTextField {
 
     @Override
     protected @NotNull EditorEx createEditor() {
-        EditorEx editor = (EditorEx) EditorFactory.getInstance().createEditor(getDocument(),getProject(),languageFileType, false);
+        EditorEx editor = (EditorEx) EditorFactory.getInstance().createEditor(getDocument(), getProject(), languageFileType, false);
         editor.setHorizontalScrollbarVisible(true);
         editor.setVerticalScrollbarVisible(true);
         editor.setHighlighter(HighlighterFactory.createHighlighter(this.getProject(), this.languageFileType));
         PsiFile psiFile = PsiDocumentManager.getInstance(getProject()).getPsiFile(getDocument());
-        if(psiFile != null){
+        if (psiFile != null) {
             DaemonCodeAnalyzer.getInstance(getProject()).setHighlightingEnabled(psiFile, true);
         }
         EditorSettings settings = editor.getSettings();
@@ -80,7 +81,15 @@ public class MultiLanguageTextField extends LanguageTextField {
         settings.setLineCursorWidth(1);
         settings.setAdditionalLinesCount(0);
         settings.setFoldingOutlineShown(true);
-        Disposer.register(getProject(),() -> EditorFactory.getInstance().releaseEditor(editor));
+        Disposer.register(getProject(), () -> EditorFactory.getInstance().releaseEditor(editor));
         return editor;
+    }
+
+    @Override
+    public void dispose() {
+        Editor editor = getEditor();
+        if (editor != null) {
+            EditorFactory.getInstance().releaseEditor(editor);
+        }
     }
 }
