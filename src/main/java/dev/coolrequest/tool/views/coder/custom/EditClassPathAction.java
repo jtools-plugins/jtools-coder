@@ -1,11 +1,11 @@
 package dev.coolrequest.tool.views.coder.custom;
 
-import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.fileTypes.PlainTextFileType;
 import com.intellij.openapi.project.Project;
-import com.intellij.util.Icons;
 import dev.coolrequest.tool.common.CacheConstant;
+import dev.coolrequest.tool.common.Icons;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.GlobalState;
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author lhstack
  * @date 2024/08/12
  */
-public class EditClassPathAction extends AnAction {
+public class EditClassPathAction extends DynamicIconAction {
 
     private final Project project;
 

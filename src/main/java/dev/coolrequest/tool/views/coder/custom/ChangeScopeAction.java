@@ -1,20 +1,15 @@
 package dev.coolrequest.tool.views.coder.custom;
 
 import com.intellij.designer.actions.AbstractComboBoxAction;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.Project;
 import dev.coolrequest.tool.common.CacheConstant;
-import dev.coolrequest.tool.common.GlobalConstant;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.state.GlobalState;
 import dev.coolrequest.tool.state.ProjectState;
 import dev.coolrequest.tool.state.ProjectStateManager;
 import dev.coolrequest.tool.state.Scope;
-import dev.coolrequest.tool.utils.ProjectUtils;
-import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
 import java.util.Arrays;
 
 public class ChangeScopeAction extends AbstractComboBoxAction<Scope> {

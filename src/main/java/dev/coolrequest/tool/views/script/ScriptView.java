@@ -13,6 +13,7 @@ import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.fileTypes.LanguageFileType;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiFile;
@@ -20,6 +21,7 @@ import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.components.JBTextArea;
 import com.intellij.util.messages.MessageBusConnection;
 import dev.coolrequest.tool.common.*;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.ProjectState;
@@ -70,7 +72,9 @@ public class ScriptView extends JPanel implements Disposable {
         this.contextLogger = LogContext.getLogger("Groovy", project);
         this.languageTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CODE_KEY, () -> {
             LanguageFileType groovyFileType = (LanguageFileType) FileTypeManager.getInstance().getFileTypeByExtension("groovy");
-            return new MultiLanguageTextField(groovyFileType, project, "CoderGroovy.groovy");
+            MultiLanguageTextField multiLanguageTextField = new MultiLanguageTextField(groovyFileType, project, "CoderGroovy.groovy");
+            Disposer.register(ScriptView.this, multiLanguageTextField);
+            return multiLanguageTextField;
         });
         this.classPathTextArea = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_GROOVY_CLASSPATH_KEY, () -> {
             JBTextArea jbTextArea = new JBTextArea();
@@ -218,7 +222,13 @@ public class ScriptView extends JPanel implements Disposable {
             ProjectStateManager.load(project).getOpStrCache(CacheConstant.SCRIPT_VIEW_CACHE_CODE).ifPresent(languageTextField::setText);
             DefaultActionGroup defaultActionGroup = new DefaultActionGroup();
             ProjectState projectState = ProjectStateManager.load(project);
-            ToggleAction usingProjectLibrary = new ToggleAction(() -> I18n.getString("script.usingProjectLibrary", project), Icons.LIBRARY) {
+            ToggleAction usingProjectLibrary = new ToggleAction(() -> I18n.getString("script.usingProjectLibrary", project), Icons.LIBRARY.get()) {
+
+                @Override
+                public void update(@NotNull AnActionEvent e) {
+                    super.update(e);
+                    e.getPresentation().setIcon(Icons.LIBRARY.get());
+                }
 
                 @Override
                 public boolean isSelected(@NotNull AnActionEvent anActionEvent) {
@@ -234,7 +244,7 @@ public class ScriptView extends JPanel implements Disposable {
                     }
                 }
             };
-            AnAction refreshDepend = new AnAction(() -> "刷新依赖", Icons.REFRESH) {
+            AnAction refreshDepend = new DynamicIconAction(() -> "刷新依赖", Icons.REFRESH) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     DumbService.getInstance(project).runWhenSmart(() -> {
@@ -258,7 +268,7 @@ public class ScriptView extends JPanel implements Disposable {
             defaultActionGroup.add(usingProjectLibrary);
             defaultActionGroup.add(refreshDepend);
             defaultActionGroup.add(run);
-            defaultActionGroup.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
+            defaultActionGroup.add(new DynamicIconAction(() -> "在编辑器中打开", Icons.OPEN) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);

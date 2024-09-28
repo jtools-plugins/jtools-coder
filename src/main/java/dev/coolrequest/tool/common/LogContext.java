@@ -1,6 +1,7 @@
 package dev.coolrequest.tool.common;
 
 import com.intellij.build.BuildTextConsoleView;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowAnchor;
@@ -10,9 +11,10 @@ import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
 import dev.coolrequest.tool.utils.ProjectUtils;
 
+import java.awt.event.InputEvent;
 import java.util.Collections;
 
-public class LogContext {
+public class LogContext implements Disposable {
 
     private final Project project;
     private final BuildTextConsoleView consoleView;
@@ -35,12 +37,6 @@ public class LogContext {
         this.project = project;
     }
 
-    public static void dispose(Project project) {
-        LogContext instance = getInstance(project);
-        instance.toolWindow.remove();
-        instance.consoleView.dispose();
-    }
-
     public Logger getLogger(Class<?> clazz) {
         return new TextAreaLogger(clazz, consoleView);
     }
@@ -60,7 +56,7 @@ public class LogContext {
 
     private void showWindow() {
         Content content = toolWindow.getContentManager().findContent("日志");
-        toolWindow.getContentManager().setSelectedContent(content, true, true);
+        toolWindow.getContentManager().setSelectedContent(content,true,true);
         toolWindow.show();
     }
 
@@ -70,5 +66,11 @@ public class LogContext {
 
     public static Logger getSysLog(Project project) {
         return getLogger("SysLog", project);
+    }
+
+    @Override
+    public void dispose() {
+        this.consoleView.dispose();
+        toolWindow.remove();
     }
 }

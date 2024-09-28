@@ -1,10 +1,10 @@
 package dev.coolrequest.tool.views.coder.custom;
 
-import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import dev.coolrequest.tool.common.I18n;
 import dev.coolrequest.tool.common.Icons;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.utils.ClassLoaderUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -13,7 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.nio.charset.StandardCharsets;
 
-public class DemoAction extends AnAction {
+public class DemoAction extends DynamicIconAction {
 
     private static final String codeTemplate = new String(ClassLoaderUtils.getResourceToBytes("template/CustomCoder.groovy"), StandardCharsets.UTF_8);
     private final MultiLanguageTextField codeFieldText;

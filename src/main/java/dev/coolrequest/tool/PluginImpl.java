@@ -1,8 +1,13 @@
 package dev.coolrequest.tool;
 
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectManager;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.IconLoader;
 import com.lhstack.tools.plugins.IPlugin;
+import dev.coolrequest.tool.common.LogContext;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.HashMap;
@@ -10,26 +15,33 @@ import java.util.Map;
 
 public class PluginImpl implements IPlugin {
 
-    private final Map<String, MainPanel> components = new HashMap<>();
+    private final Map<String, Disposable> components = new HashMap<>();
 
     @Override
     public JComponent createPanel(Project project) {
-        return components.computeIfAbsent(project.getLocationHash(), key -> {
+        return (JComponent) components.computeIfAbsent(project.getLocationHash(), key -> {
             return new MainPanel().setProject(project).createPanel();
         });
     }
 
-
-    @Override
-    public void closeProject(String projectHash) {
-        MainPanel mainPanel = components.remove(projectHash);
-        mainPanel.dispose();
-    }
-
     @Override
     public void unInstall() {
-        components.values().forEach(MainPanel::dispose);
+        components.values().forEach(Disposer::dispose);
+        components.clear();
+        for (@NotNull Project openProject : ProjectManager.getInstance().getOpenProjects()) {
+            Disposer.dispose(LogContext.getInstance(openProject));
+        }
     }
+
+    @Override
+    public void closeProject(Project project) {
+        Disposable disposable = components.remove(project.getLocationHash());
+        if(disposable != null){
+            Disposer.dispose(disposable);
+        }
+        Disposer.dispose(LogContext.getInstance(project));
+    }
+
 
     @Override
     public Icon pluginIcon() {

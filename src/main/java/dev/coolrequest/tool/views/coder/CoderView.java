@@ -4,9 +4,6 @@ import com.intellij.codeInsight.actions.CodeCleanupCodeProcessor;
 import com.intellij.codeInsight.actions.OptimizeImportsProcessor;
 import com.intellij.codeInsight.actions.RearrangeCodeProcessor;
 import com.intellij.codeInsight.actions.ReformatCodeProcessor;
-import com.intellij.notification.Notification;
-import com.intellij.notification.NotificationType;
-import com.intellij.notification.Notifications;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
@@ -23,6 +20,7 @@ import com.intellij.openapi.fileTypes.PlainTextFileType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.SimpleToolWindowPanel;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
@@ -34,6 +32,7 @@ import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentManager;
 import com.intellij.util.messages.MessageBusConnection;
 import dev.coolrequest.tool.common.*;
+import dev.coolrequest.tool.components.DynamicIconAction;
 import dev.coolrequest.tool.components.MultiLanguageTextField;
 import dev.coolrequest.tool.components.SimpleFrame;
 import dev.coolrequest.tool.state.GlobalState;
@@ -102,8 +101,10 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                 .collect(Collectors.toList());
 
         this.leftTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
+        Disposer.register(this,leftTextField);
         this.leftTextField.getDocument().addDocumentListener(this);
         this.rightTextField = new MultiLanguageTextField(PlainTextFileType.INSTANCE, project);
+        Disposer.register(this,rightTextField);
         this.rightTextField.setEnabled(false);
 
         this.codeTextField = ProjectUtils.getOrCreate(project, GlobalConstant.CODER_CUSTOM_CODE_KEY, () -> {
@@ -118,6 +119,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                 String script = GlobalState.getOpStrCache(CacheConstant.CODER_VIEW_CUSTOM_CODER_SCRIPT_CODE).orElse("");
                 codeTextField.setText(script);
             }
+            Disposer.register(CoderView.this,codeTextField);
             return codeTextField;
         });
 
@@ -335,7 +337,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             super(new BorderLayout());
             this.project = project;
             DefaultActionGroup group = new DefaultActionGroup();
-            AnAction clearAction = new AnAction(() -> I18n.getString("coder.editor.clear", project), Icons.CLEAR) {
+            AnAction clearAction = new DynamicIconAction(() -> I18n.getString("coder.editor.clear", project), Icons.CLEAR) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                     if (StringUtils.isBlank(leftTextField.getText()) && StringUtils.isBlank(rightTextField.getText())) {
@@ -349,7 +351,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                     contextLogger.warn("清空编辑器中的内容完毕");
                 }
             };
-            AnAction addAction = new AnAction(() -> I18n.getString("coder.custom.title", project), Icons.ADD) {
+            AnAction addAction = new DynamicIconAction(() -> I18n.getString("coder.custom.title", project), Icons.ADD) {
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                     try {
@@ -362,7 +364,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             group.add(clearAction);
             group.add(addAction);
             if (!isConsole) {
-                group.add(new AnAction(() -> "在控制台打开", Icons.CONSOLE) {
+                group.add(new DynamicIconAction(() -> "在控制台打开", Icons.CONSOLE) {
                     @Override
                     public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
                         ToolWindowManager toolWindowManager = ToolWindowManager.getInstance(project);
@@ -371,7 +373,9 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                         Content coderContent = contentManager.findContent("Coder");
                         if (coderContent == null) {
                             ContentFactory contentFactory = ContentFactory.SERVICE.getInstance();
-                            coderContent = contentFactory.createContent(new CoderView(project, true), "Coder", true);
+                            CoderView coderView = new CoderView(project, true);
+                            Disposer.register(CoderView.this,coderView);
+                            coderContent = contentFactory.createContent(coderView, "Coder", true);
                             contentManager.addContent(coderContent);
                         }
                         toolWindow.show();
@@ -382,6 +386,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             }
 
             ActionToolbar actionToolbar = ActionManager.getInstance().createActionToolbar("Coder@Toolbar", group, true);
+            actionToolbar.setTargetComponent(this);
             JPanel panel = ComponentUtils.createFlowLayoutPanel(FlowLayout.LEFT, coderTargetBox, actionToolbar.getComponent());
             //添加下拉框,左对齐
             add(panel, BorderLayout.NORTH);
@@ -418,23 +423,13 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
                 coder.addWindowListener(new WindowAdapter() {
                     @Override
                     public void windowClosing(WindowEvent e) {
-                        try {
-                            disposes.forEach(Runnable::run);
-                        } catch (Throwable err) {
-                            String stackMsg = Arrays.stream(err.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\r\n"));
-                            Notifications.Bus.notify(new Notification("", "关闭自定义coder窗口", err + "\r\n" + stackMsg, NotificationType.ERROR), project);
-                        }
+                        disposes.forEach(Runnable::run);
                         state.set(false);
                     }
 
                     @Override
                     public void windowClosed(WindowEvent e) {
-                        try {
-                            disposes.forEach(Runnable::run);
-                        } catch (Throwable err) {
-                            String stackMsg = Arrays.stream(err.getStackTrace()).map(StackTraceElement::toString).collect(Collectors.joining("\r\n"));
-                            Notifications.Bus.notify(new Notification("", "关闭自定义coder窗口", err + "\r\n" + stackMsg, NotificationType.ERROR), project);
-                        }
+                        disposes.forEach(Runnable::run);
                         state.set(false);
                     }
                 });
@@ -455,7 +450,7 @@ public class CoderView extends JPanel implements DocumentListener, Disposable {
             defaultActionGroup.add(new EditClassPathAction(project));
             defaultActionGroup.add(new RefreshClassPathAction(project));
             defaultActionGroup.add(new ChangeScopeAction(codeTextField, project));
-            defaultActionGroup.add(new AnAction(() -> "在编辑器中打开", Icons.OPEN) {
+            defaultActionGroup.add(new DynamicIconAction(() -> "在编辑器中打开", Icons.OPEN) {
 
                 @Override
                 public void actionPerformed(@NotNull AnActionEvent event) {
