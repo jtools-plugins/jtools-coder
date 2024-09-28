@@ -12,8 +12,6 @@ public class PluginImpl implements IPlugin {
 
     private final Map<String, MainPanel> components = new HashMap<>();
 
-    private final Map<String, Project> projectMap = new HashMap<>();
-
     @Override
     public JComponent createPanel(Project project) {
         return components.computeIfAbsent(project.getLocationHash(), key -> {
@@ -21,10 +19,6 @@ public class PluginImpl implements IPlugin {
         });
     }
 
-    @Override
-    public void openProject(Project project, Runnable openThisPage) {
-        projectMap.put(project.getLocationHash(), project);
-    }
 
     @Override
     public void closeProject(String projectHash) {
@@ -34,7 +28,7 @@ public class PluginImpl implements IPlugin {
 
     @Override
     public void unInstall() {
-        projectMap.values().forEach(project -> closeProject(project.getLocationHash()));
+        components.values().forEach(MainPanel::dispose);
     }
 
     @Override

@@ -22,6 +22,7 @@ intellij {
 }
 
 dependencies {
+    implementation(files("C:/Users/lhstack/.ideaTools/sdk/sdk.jar"))
     testImplementation(kotlin("test"))
     implementation(fileTree("/libs"))
     // https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
