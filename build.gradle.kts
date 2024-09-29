@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.coolrequest.tool.views.coder"
-version = "v1.0.8"
+version = "v2.0.0"
 
 repositories {
     mavenLocal()
