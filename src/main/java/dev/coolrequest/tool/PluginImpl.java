@@ -2,12 +2,10 @@ package dev.coolrequest.tool;
 
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.IconLoader;
 import com.lhstack.tools.plugins.IPlugin;
 import dev.coolrequest.tool.common.LogContext;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.HashMap;
@@ -22,15 +20,6 @@ public class PluginImpl implements IPlugin {
         return (JComponent) components.computeIfAbsent(project.getLocationHash(), key -> {
             return new MainPanel().setProject(project).createPanel();
         });
-    }
-
-    @Override
-    public void unInstall() {
-        components.values().forEach(Disposer::dispose);
-        components.clear();
-        for (@NotNull Project openProject : ProjectManager.getInstance().getOpenProjects()) {
-            Disposer.dispose(LogContext.getInstance(openProject));
-        }
     }
 
     @Override
